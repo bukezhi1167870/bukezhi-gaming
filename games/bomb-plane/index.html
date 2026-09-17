@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞机大战·小圈SP版</title>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<style>
+    :root {
+        --cell-size: 28px;
+        --plane-color: #4472c4;
+        --plane-head: #c41e1e;
+        --plane-center: #e67e22;
+        --hit-color: #ff6b35;
+        --miss-color: #999;
+        --board-bg: #e8f0fe;
+        --cell-border: #b0c4de;
+        --sunk-color: #8b0000; /* 深红黑 */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        background: #1a1a2e;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .game-container {
+        background: #16213e;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        max-width: 100%;
+        overflow-x: auto;
+        margin-bottom: 20px;
+    }
+
+    .header { text-align: center; color: #fff; margin-bottom: 16px; }
+    .header h1 { font-size: 1.5rem; letter-spacing: 2px; }
+    .header .status { margin-top: 8px; font-size: 1rem; color: #ffd700; min-height: 24px; font-weight: bold; }
+
+    .boards-container { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+    .board-panel { text-align: center; }
+    .board-panel .label { color: #ccc; font-size: 0.85rem; margin-bottom: 6px; font-weight: bold; letter-spacing: 1px; }
+    .board-panel .label.active-label { color: #ffd700; }
+
+    .board {
+        display: grid;
+        grid-template-columns: repeat(15, var(--cell-size));
+        grid-template-rows: repeat(15, var(--cell-size));
+        gap: 1px;
+        background: var(--cell-border);
+        border: 2px solid #333;
+        border-radius: 4px;
+        overflow: hidden;
+        touch-action: manipulation;
+    }
+
+    .cell {
+        width: var(--cell-size);
+        height: var(--cell-size);
+        background: var(--board-bg);
+        cursor: pointer;
+        position: relative;
+        transition: background 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: calc(var(--cell-size) * 0.55);
+        font-weight: bold;
+    }
+    .cell:hover { background: #d0e0f0; }
+
+    .cell.plane-body { background: var(--plane-color); }
+    .cell.plane-head { background: var(--plane-head); }
+    .cell.plane-center { background: var(--plane-center); }
+
+    .cell.own-miss { background: #d4d4d4; }
+    .cell.own-miss::after { content: '×'; color: #666; font-size: calc(var(--cell-size)*0.6); }
+    .cell.own-hit { background: #ffcc00; }
+    .cell.own-hit::after { content: '✕'; color: #c41e1e; font-size: calc(var(--cell-size)*0.7); font-weight: bold; }
+    .cell.own-sunk { background: #555; }
+    .cell.own-sunk::after { content: '✕'; color: #ff4444; font-size: calc(var(--cell-size)*0.7); font-weight: bold; }
+
+    .cell.enemy-miss { background: #d4d4d4; }
+    .cell.enemy-miss::after { content: '×'; color: #888; font-size: calc(var(--cell-size)*0.6); }
+    .cell.enemy-hit { background: #ffcc00; }
+    .cell.enemy-hit::after { content: '✕'; color: #c41e1e; font-size: calc(var(--cell-size)*0.7); font-weight: bold; }
+    /* 击落飞机：红黑色格子 */
+    .cell.enemy-sunk { background: var(--sunk-color); }
+    .cell.enemy-sunk::after { content: '✕'; color: #ff0000; font-size: calc(var(--cell-size)*0.75); font-weight: bold; }
+
+    .cell.preview-valid { background: #90ee90 !important; opacity: 0.7; }
+    .cell.preview-invalid { background: #ff9999 !important; opacity: 0.7; }
+    .cell.preview-head { background: #32cd32 !important; opacity: 0.8; }
+
+    .controls { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+    .direction-buttons { display: flex; gap: 6px; }
+    .dir-btn { width: 40px; height: 40px; font-size: 1.2rem; border: none; border-radius: 8px; cursor: pointer; background: #333; color: #fff; transition: all 0.2s; }
+    .dir-btn.active { background: #ffd700; color: #000; }
+    .dir-btn:hover { background: #555; }
+    .action-btn { padding: 10px 20px; font-size: 0.95rem; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; letter-spacing: 1px; }
+    .action-btn.primary { background: #ffd700; color: #000; }
+    .action-btn.primary:hover { background: #ffed4a; }
+    .action-btn.secondary { background: #444; color: #fff; }
+    .action-btn.secondary:hover { background: #666; }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .connection-panel { background: #16213e; border-radius: 16px; padding: 30px; max-width: 500px; text-align: center; color: #fff; margin-bottom: 20px; }
+    .connection-panel h2 { color: #ffd700; margin-bottom: 15px; }
+    .connection-panel input { padding: 8px 12px; font-size: 1rem; border-radius: 8px; border: 1px solid #ccc; margin: 5px; width: 200px; }
+    .connection-panel button { margin: 5px; }
+    .room-display { display: flex; align-items: center; justify-content: center; margin-top: 10px; }
+    .room-display input { width: 200px; text-align: center; font-weight: bold; letter-spacing: 2px; user-select: text; cursor: text; }
+    .copy-btn { padding: 8px 12px; margin-left: 5px; background: #333; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .copy-btn:hover { background: #555; }
+    .nickname-input { width: 120px !important; }
+
+    .overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        z-index: 100; color: #fff;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h2 { font-size: 1.8rem; margin-bottom: 12px; color: #ffd700; }
+    .overlay p { font-size: 1.1rem; margin-bottom: 20px; color: #ccc; }
+
+    .bet-options { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; justify-content: center; }
+    .bet-option {
+        padding: 12px 24px;
+        font-size: 1.1rem;
+        border: 2px solid #666;
+        border-radius: 10px;
+        cursor: pointer;
+        background: #333; color: #fff;
+        font-weight: bold;
+    }
+    .bet-option.selected { background: #ffd700; color: #000; border-color: #ffd700; }
+    #betAmount { font-size: 1.2rem; padding: 8px 12px; width: 100px; text-align: center; border-radius: 8px; border: 1px solid #ccc; margin: 10px 0; }
+
+    .rule-section { background: #16213e; color: #ccc; border-radius: 12px; padding: 20px; max-width: 900px; width: 100%; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+    .rule-section h3 { color: #ffd700; text-align: center; margin-bottom: 10px; }
+    .rule-section ul { list-style: none; padding-left: 0; }
+    .rule-section li { margin-bottom: 6px; line-height: 1.5; }
+
+    @media (max-width: 700px) {
+        :root { --cell-size: 20px; }
+        .boards-container { gap: 12px; }
+        .game-container { padding: 12px; }
+    }
+    @media (max-width: 450px) {
+        :root { --cell-size: 16px; }
+        .boards-container { gap: 8px; }
+        .game-container { padding: 8px; }
+    }
+</style>
+</head>
+<body>
+
+<!-- 连接面板 -->
+<div class="connection-panel" id="connectionPanel">
+    <h2>🔗 联机设置</h2>
+    <p>输入昵称（6字以内），然后创建或加入房间</p>
+    <div>
+        <input type="text" id="nicknameInput" class="nickname-input" placeholder="昵称" maxlength="6" value="玩家1">
+        <button class="action-btn primary" id="hostBtn">创建房间</button>
+        <input type="text" id="roomInput" placeholder="输入16位房间号">
+        <button class="action-btn secondary" id="joinBtn">加入房间</button>
+    </div>
+    <div class="room-display hidden" id="roomDisplayArea">
+        <input type="text" id="roomCode" readonly>
+        <button class="copy-btn" id="copyRoomBtn">复制</button>
+    </div>
+    <p id="connStatus" style="margin-top:10px; color:#ffd700;"></p>
+</div>
+
+<!-- 游戏主界面（初始隐藏） -->
+<div class="game-container hidden" id="gameContainer">
+    <div class="header">
+        <h1>✈ 飞机大战·小圈SP版</h1>
+        <div class="status" id="statusText">等待连接...</div>
+    </div>
+    <div class="boards-container">
+        <div class="board-panel">
+            <div class="label active-label" id="ownLabel">我的棋盘</div>
+            <div class="board" id="ownBoard"></div>
+        </div>
+        <div class="board-panel">
+            <div class="label" id="enemyLabel">敌方棋盘</div>
+            <div class="board" id="enemyBoard"></div>
+        </div>
+    </div>
+    <div class="controls" id="controls">
+        <div class="direction-buttons" id="dirButtons">
+            <button class="dir-btn active" data-dir="up">↑</button>
+            <button class="dir-btn" data-dir="right">→</button>
+            <button class="dir-btn" data-dir="down">↓</button>
+            <button class="dir-btn" data-dir="left">←</button>
+        </div>
+        <button class="action-btn primary" id="actionBtn">确定放置</button>
+        <button class="action-btn secondary hidden" id="undoBtn">撤销上一架</button>
+    </div>
+</div>
+
+<!-- 通用遮罩 -->
+<div class="overlay hidden" id="infoOverlay">
+    <h2 id="infoTitle">提示</h2>
+    <div id="infoContent" style="text-align:center; font-size:1.1rem; line-height:1.6;"></div>
+    <button class="action-btn primary" id="infoBtn">确定</button>
+</div>
+
+<!-- 下注遮罩 -->
+<div class="overlay hidden" id="betOverlay">
+    <h2>请下注</h2>
+    <p>选择惩罚项目：</p>
+    <div class="bet-options" id="betOptions">
+        <button class="bet-option" data-type="巴掌" type="button">巴掌</button>
+        <button class="bet-option" data-type="戒尺" type="button">戒尺</button>
+        <button class="bet-option" data-type="强高" type="button">强高</button>
+        <button class="bet-option" data-type="寸止" type="button">寸止</button>
+    </div>
+    <p>数量（0-50）：</p>
+    <input type="number" id="betAmount" min="0" max="50" value="0">
+    <button class="action-btn primary" id="betConfirmBtn">确认下注</button>
+</div>
+
+<!-- 规则说明 -->
+<div class="rule-section">
+    <h3>📜 游戏规则</h3>
+    <ul>
+        <li><strong>棋盘：</strong>15×15 方格，双方各自布置三架飞机，对方不可见。</li>
+        <li><strong>飞机：</strong>机头机头及中心伤害3，其余部位伤害1。每架飞机初始生命3点，生命值归零即坠机。</li>
+        <li><strong>攻击：</strong>双方轮流攻击，每人每回合只能攻击一次，无论是否命中都会切换玩家。</li>
+        <li><strong>下注：</strong>双方选择惩罚项目（巴掌/戒尺/强高/寸止）和数量（0~50），下注互不可见，游戏开始后公开。</li>
+        <li><strong>结算：</strong>获胜方赢得赌注 = 双方各自的赌注数量 × (3 - 获胜方坠机数)。</li>
+        <li><strong>其他：</strong>游戏作者：不可知，更多BDSM小游戏或内容请至X账号：@bukezhi1167870</li>
+    </ul>
+</div>
+
+<script>
+(function() {
+    const BOARD_SIZE = 15;
+    const PLANES_PER_PLAYER = 3;
+
+    // 飞机形状：机头下一格为橙色，伤害3
+    const PLANE_SHAPES = {
+        up: [
+            {r:0, c:0, isHead:true, isCenter:false, damage:3},
+            {r:1, c:-2, isHead:false, isCenter:false, damage:1},
+            {r:1, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:1, c:0, isHead:false, isCenter:true, damage:3},
+            {r:1, c:1, isHead:false, isCenter:false, damage:1},
+            {r:1, c:2, isHead:false, isCenter:false, damage:1},
+            {r:2, c:0, isHead:false, isCenter:false, damage:1},
+            {r:3, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:3, c:0, isHead:false, isCenter:false, damage:1},
+            {r:3, c:1, isHead:false, isCenter:false, damage:1},
+        ],
+        right: [
+            {r:0, c:0, isHead:true, isCenter:false, damage:3},
+            {r:-2, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:0, c:-1, isHead:false, isCenter:true, damage:3},
+            {r:1, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:2, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:0, c:-2, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:-3, isHead:false, isCenter:false, damage:1},
+            {r:0, c:-3, isHead:false, isCenter:false, damage:1},
+            {r:1, c:-3, isHead:false, isCenter:false, damage:1},
+        ],
+        down: [
+            {r:0, c:0, isHead:true, isCenter:false, damage:3},
+            {r:-1, c:-2, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:0, isHead:false, isCenter:true, damage:3},
+            {r:-1, c:1, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:2, isHead:false, isCenter:false, damage:1},
+            {r:-2, c:0, isHead:false, isCenter:false, damage:1},
+            {r:-3, c:-1, isHead:false, isCenter:false, damage:1},
+            {r:-3, c:0, isHead:false, isCenter:false, damage:1},
+            {r:-3, c:1, isHead:false, isCenter:false, damage:1},
+        ],
+        left: [
+            {r:0, c:0, isHead:true, isCenter:false, damage:3},
+            {r:-2, c:1, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:1, isHead:false, isCenter:false, damage:1},
+            {r:0, c:1, isHead:false, isCenter:true, damage:3},
+            {r:1, c:1, isHead:false, isCenter:false, damage:1},
+            {r:2, c:1, isHead:false, isCenter:false, damage:1},
+            {r:0, c:2, isHead:false, isCenter:false, damage:1},
+            {r:-1, c:3, isHead:false, isCenter:false, damage:1},
+            {r:0, c:3, isHead:false, isCenter:false, damage:1},
+            {r:1, c:3, isHead:false, isCenter:false, damage:1},
+        ],
+    };
+
+    const game = {
+        phase: 'idle', myId: 0, myTurn: false,
+        selectedDir: 'up', hoverPos: null, planeIdCounter: 0,
+        planes: [], enemyPlanes: [], attacksOnEnemy: [],
+        enemyAttacksOnMe: [], sunkPlaneIds: [], enemySunkPlaneIds: [],
+        bet: null, enemyBet: null,
+        connected: false, conn: null, isHost: false, roomCode: null,
+        myName: '', enemyName: '',
+        bothNicknamesReady: false,
+    };
+
+    // DOM 元素
+    const connectionPanel = document.getElementById('connectionPanel');
+    const gameContainer = document.getElementById('gameContainer');
+    const connStatus = document.getElementById('connStatus');
+    const hostBtn = document.getElementById('hostBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const roomInput = document.getElementById('roomInput');
+    const nicknameInput = document.getElementById('nicknameInput');
+    const roomDisplayArea = document.getElementById('roomDisplayArea');
+    const roomCodeInput = document.getElementById('roomCode');
+    const copyRoomBtn = document.getElementById('copyRoomBtn');
+
+    const ownBoardEl = document.getElementById('ownBoard');
+    const enemyBoardEl = document.getElementById('enemyBoard');
+    const statusText = document.getElementById('statusText');
+    const ownLabel = document.getElementById('ownLabel');
+    const enemyLabel = document.getElementById('enemyLabel');
+    const dirButtons = document.querySelectorAll('.dir-btn');
+    const actionBtn = document.getElementById('actionBtn');
+    const undoBtn = document.getElementById('undoBtn');
+
+    const infoOverlay = document.getElementById('infoOverlay');
+    const infoTitle = document.getElementById('infoTitle');
+    const infoContent = document.getElementById('infoContent');
+    const infoBtn = document.getElementById('infoBtn');
+
+    const betOverlay = document.getElementById('betOverlay');
+    const betOptionsContainer = document.getElementById('betOptions');
+    const betAmountInput = document.getElementById('betAmount');
+    const betConfirmBtn = document.getElementById('betConfirmBtn');
+
+    function createBoardDOM(boardEl) {
+        boardEl.innerHTML = '';
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                boardEl.appendChild(cell);
+            }
+        }
+    }
+    createBoardDOM(ownBoardEl);
+    createBoardDOM(enemyBoardEl);
+
+    function getOpponentId(id) { return id === 1 ? 2 : 1; }
+    function getPlaneCells(headRow, headCol, dir) {
+        return PLANE_SHAPES[dir].map(item => ({
+            r: headRow + item.r, c: headCol + item.c,
+            isHead: item.isHead, isCenter: item.isCenter, damage: item.damage,
+        }));
+    }
+    function isInBounds(r, c) { return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE; }
+    function isValidPlacement(headRow, headCol, dir) {
+        const cells = getPlaneCells(headRow, headCol, dir);
+        for (const cell of cells) if (!isInBounds(cell.r, cell.c)) return false;
+        for (const plane of game.planes) {
+            for (const pc of plane.cells) {
+                for (const nc of cells) if (pc.r === nc.r && pc.c === nc.c) return false;
+            }
+        }
+        return true;
+    }
+    function getMyPlaneAt(row, col) {
+        for (const plane of game.planes) {
+            for (const cell of plane.cells) if (cell.r === row && cell.c === col) return plane;
+        }
+        return null;
+    }
+    function isCellAttackedByEnemy(row, col) {
+        return game.enemyAttacksOnMe.some(a => a.row === row && a.col === col);
+    }
+
+    function startLocalGame() {
+        game.phase = 'setup';
+        game.planes = [];
+        game.attacksOnEnemy = [];
+        game.enemyAttacksOnMe = [];
+        game.sunkPlaneIds = [];
+        game.enemySunkPlaneIds = [];
+        game.enemyPlanes = [];
+        game.bet = null;
+        game.enemyBet = null;
+        game.myTurn = false;
+        game.planeIdCounter = 0;
+        game.selectedDir = 'up';
+        game.hoverPos = null;
+        render();
+        updateLabels();
+        statusText.textContent = `${game.myName}，请布置你的飞机`;
+    }
+
+    function updateLabels() {
+        ownLabel.textContent = `${game.myName} 的棋盘`;
+        enemyLabel.textContent = `${game.enemyName || '对方'} 的棋盘`;
+    }
+
+    function render() {
+        renderOwnBoard();
+        renderEnemyBoard();
+        renderStatusAndControls();
+    }
+
+    function renderOwnBoard() {
+        const cells = ownBoardEl.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            cell.className = 'cell';
+            const plane = getMyPlaneAt(r, c);
+            if (plane) {
+                const cellInfo = plane.cells.find(pc => pc.r === r && pc.c === c);
+                const isSunk = game.sunkPlaneIds.includes(plane.id);
+                if (isSunk) {
+                    cell.classList.add('own-sunk');
+                } else {
+                    if (cellInfo.isHead) cell.classList.add('plane-head');
+                    else if (cellInfo.isCenter) cell.classList.add('plane-center');
+                    else cell.classList.add('plane-body');
+                }
+                if (isCellAttackedByEnemy(r, c)) if (!isSunk) cell.classList.add('own-hit');
+                return;
+            }
+            if (isCellAttackedByEnemy(r, c)) cell.classList.add('own-miss');
+            if (game.phase === 'setup' && game.hoverPos) {
+                const previewCells = getPlaneCells(game.hoverPos.r, game.hoverPos.c, game.selectedDir);
+                const valid = isValidPlacement(game.hoverPos.r, game.hoverPos.c, game.selectedDir);
+                for (const pc of previewCells) {
+                    if (pc.r === r && pc.c === c) {
+                        cell.classList.add(valid ? 'preview-valid' : 'preview-invalid');
+                        if (pc.isHead) cell.classList.add('preview-head');
+                    }
+                }
+            }
+        });
+    }
+
+    function renderEnemyBoard() {
+        const cells = enemyBoardEl.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            cell.className = 'cell';
+            const attack = game.attacksOnEnemy.find(a => a.row === r && a.col === c);
+            if (attack) {
+                if (attack.result === 'miss') {
+                    cell.classList.add('enemy-miss');
+                } else {
+                    // 判断该攻击所属飞机是否已击落
+                    const isSunk = attack.planeId && game.enemySunkPlaneIds.includes(attack.planeId);
+                    if (attack.result === 'sunk' || isSunk) {
+                        cell.classList.add('enemy-sunk');
+                    } else {
+                        cell.classList.add('enemy-hit');
+                    }
+                }
+            }
+        });
+    }
+
+    function renderStatusAndControls() {
+        if (game.phase === 'setup') {
+            const placed = game.planes.length;
+            statusText.textContent = `${game.myName}，请布置飞机（${placed}/${PLANES_PER_PLAYER}）`;
+            dirButtons.forEach(btn => btn.disabled = false);
+            actionBtn.textContent = placed >= PLANES_PER_PLAYER ? '✅ 完成布置' : '📌 确定放置';
+            actionBtn.disabled = false;
+            undoBtn.classList.toggle('hidden', placed === 0);
+            undoBtn.disabled = placed === 0;
+        } else if (game.phase === 'betting') {
+            statusText.textContent = '等待双方下注...';
+            dirButtons.forEach(btn => btn.disabled = true);
+            actionBtn.disabled = true;
+            undoBtn.classList.add('hidden');
+        } else if (game.phase === 'attack') {
+            statusText.textContent = game.myTurn ? `${game.myName}的回合，点击敌方棋盘攻击` : `${game.enemyName || '对方'}的回合...`;
+            dirButtons.forEach(btn => btn.disabled = true);
+            actionBtn.disabled = true;
+            undoBtn.classList.add('hidden');
+        } else if (game.phase === 'gameover') {
+            statusText.textContent = '游戏结束';
+            dirButtons.forEach(btn => btn.disabled = true);
+            actionBtn.disabled = true;
+            undoBtn.classList.add('hidden');
+        } else {
+            statusText.textContent = '等待连接...';
+            dirButtons.forEach(btn => btn.disabled = true);
+            actionBtn.disabled = true;
+            undoBtn.classList.add('hidden');
+        }
+    }
+
+    function placePlane(headRow, headCol) {
+        if (game.phase !== 'setup' || game.planes.length >= PLANES_PER_PLAYER) return;
+        if (!isValidPlacement(headRow, headCol, game.selectedDir)) return;
+        const cells = getPlaneCells(headRow, headCol, game.selectedDir);
+        const plane = {
+            id: game.planeIdCounter++,
+            headRow, headCol, dir: game.selectedDir,
+            cells: cells, hp: 3, sunk: false,
+        };
+        game.planes.push(plane);
+        game.hoverPos = null;
+        render();
+    }
+
+    function undoLastPlane() {
+        if (game.phase !== 'setup' || game.planes.length === 0) return;
+        game.planes.pop();
+        game.hoverPos = null;
+        render();
+    }
+
+    function finishSetup() {
+        if (game.planes.length < PLANES_PER_PLAYER) return;
+        send({ type: 'setup_done' });
+        game.phase = 'betting';
+        render();
+        showBetOverlay();
+        statusText.textContent = `等待${game.enemyName || '对方'}完成布置...`;
+    }
+
+    function attackCell(row, col) {
+        if (game.phase !== 'attack' || !game.myTurn) return;
+        if (game.attacksOnEnemy.some(a => a.row === row && a.col === col)) return;
+        send({ type: 'attack_request', row, col });
+        game.myTurn = false;
+        render();
+    }
+
+    let peer = null;
+
+    function generateRoomCode() {
+        let code = '';
+        for (let i = 0; i < 16; i++) code += Math.floor(Math.random() * 10);
+        return code;
+    }
+
+    function formatRoomCode(code) {
+        return code.match(/.{1,4}/g).join('-');
+    }
+
+    function initPeer() {
+        peer = new Peer();
+        peer.on('open', (id) => console.log('我的Peer ID:', id));
+        peer.on('connection', (conn) => {
+            conn.on('open', () => {
+                game.conn = conn;
+                game.connected = true;
+                game.isHost = true;
+                game.myId = 1;
+                connectionPanel.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                statusText.textContent = '已连接，等待昵称交换...';
+                // 发送昵称
+                send({ type: 'nickname', name: game.myName });
+            });
+            conn.on('data', handleData);
+            conn.on('close', () => { alert('连接已断开'); location.reload(); });
+        });
+        peer.on('error', (err) => { console.error(err); alert('PeerJS错误: ' + err.type); });
+    }
+
+    function hostGame() {
+        const name = nicknameInput.value.trim() || '玩家1';
+        game.myName = name;
+        const code = generateRoomCode();
+        game.roomCode = code;
+        peer = new Peer(code);
+        peer.on('open', (id) => {
+            roomCodeInput.value = formatRoomCode(code);
+            roomDisplayArea.classList.remove('hidden');
+            connStatus.textContent = '等待对方加入...';
+            hostBtn.disabled = true;
+            joinBtn.disabled = true;
+            roomInput.disabled = true;
+            nicknameInput.disabled = true;
+        });
+        peer.on('connection', (conn) => {
+            conn.on('open', () => {
+                game.conn = conn;
+                game.connected = true;
+                game.isHost = true;
+                game.myId = 1;
+                connectionPanel.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                statusText.textContent = '已连接，等待昵称交换...';
+                // 发送昵称
+                send({ type: 'nickname', name: game.myName });
+            });
+            conn.on('data', handleData);
+            conn.on('close', () => { alert('连接已断开'); location.reload(); });
+        });
+        peer.on('error', (err) => { console.error(err); alert('PeerJS错误: ' + err.type); });
+    }
+
+    function joinGame() {
+        const name = nicknameInput.value.trim() || '玩家2';
+        game.myName = name;
+        let input = roomInput.value.trim().replace(/-/g, '');
+        if (!/^\d{16}$/.test(input)) { alert('请输入有效的16位数字房间号'); return; }
+        const remoteId = input;
+        initPeer();
+        peer.on('open', () => {
+            const conn = peer.connect(remoteId, { reliable: true });
+            conn.on('open', () => {
+                game.conn = conn;
+                game.connected = true;
+                game.isHost = false;
+                game.myId = 2;
+                connectionPanel.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                statusText.textContent = '已连接，等待昵称交换...';
+                // 发送昵称
+                send({ type: 'nickname', name: game.myName });
+            });
+            conn.on('data', handleData);
+            conn.on('close', () => { alert('连接已断开'); location.reload(); });
+        });
+    }
+
+    function send(data) {
+        if (game.conn && game.conn.open) game.conn.send(data);
+    }
+
+    function handleData(data) {
+        if (!data || !data.type) return;
+        switch (data.type) {
+            case 'nickname':
+                game.enemyName = data.name;
+                updateLabels();
+                if (game.isHost) {
+                    // 主机收到对方昵称后开始游戏
+                    if (!game.bothNicknamesReady) {
+                        game.bothNicknamesReady = true;
+                        startLocalGame();
+                        send({ type: 'start_game' });
+                    }
+                }
+                break;
+            case 'start_game':
+                if (!game.bothNicknamesReady) {
+                    game.bothNicknamesReady = true;
+                }
+                startLocalGame();
+                break;
+            case 'setup_done':
+                break;
+            case 'bet_submitted':
+                game.enemyBet = data.bet;
+                if (game.bet && game.enemyBet) {
+                    showBetReveal();
+                    send({ type: 'bet_reveal', enemyBet: game.bet });
+                }
+                break;
+            case 'bet_reveal':
+                game.enemyBet = data.enemyBet;
+                showBetReveal();
+                break;
+            case 'start_attack':
+                game.phase = 'attack';
+                game.myTurn = (data.turn === game.myId);
+                render();
+                break;
+            case 'attack_request':
+                handleEnemyAttack(data.row, data.col);
+                break;
+            case 'attack_result':
+                handleAttackResult(data);
+                break;
+            case 'game_over':
+                showGameOver(data.winner, data.settlement);
+                break;
+            default:
+                console.log('未知消息', data);
+        }
+    }
+
+    function handleEnemyAttack(row, col) {
+        const plane = getMyPlaneAt(row, col);
+        let result, planeId = null, sunkPlaneCells = null;
+        if (!plane || game.sunkPlaneIds.includes(plane.id)) {
+            result = 'miss';
+        } else {
+            const cellInfo = plane.cells.find(pc => pc.r === row && pc.c === col);
+            plane.hp -= cellInfo.damage;
+            if (plane.hp <= 0) {
+                plane.sunk = true;
+                game.sunkPlaneIds.push(plane.id);
+                result = 'sunk';
+                planeId = plane.id;
+                sunkPlaneCells = plane.cells;
+            } else {
+                result = 'hit';
+                planeId = plane.id;
+            }
+        }
+        game.enemyAttacksOnMe.push({ row, col });
+        render();
+        send({ type: 'attack_result', row, col, result, planeId, sunkPlaneCells });
+        if (game.sunkPlaneIds.length >= PLANES_PER_PLAYER) {
+            game.phase = 'gameover';
+            const winner = getOpponentId(game.myId);
+            const settlement = calculateSettlement(winner);
+            send({ type: 'game_over', winner, settlement });
+            showGameOver(winner, settlement);
+        }
+    }
+
+    function handleAttackResult(data) {
+        const { row, col, result, planeId, sunkPlaneCells } = data;
+        game.attacksOnEnemy.push({ row, col, result, planeId });
+        if (result === 'sunk') {
+            // 记录已击落的飞机ID（不再需要完整cells用于显示，但保留数据）
+            if (planeId !== null && !game.enemySunkPlaneIds.includes(planeId)) {
+                game.enemySunkPlaneIds.push(planeId);
+                if (sunkPlaneCells) {
+                    game.enemyPlanes.push({ id: planeId, cells: sunkPlaneCells });
+                }
+            }
+        }
+        render();
+        if (game.enemySunkPlaneIds.length >= PLANES_PER_PLAYER) {
+            game.phase = 'gameover';
+            const winner = game.myId;
+            const settlement = calculateSettlement(winner);
+            send({ type: 'game_over', winner, settlement });
+            showGameOver(winner, settlement);
+            return;
+        }
+        game.myTurn = false;
+        const nextTurn = getOpponentId(game.myId);
+        send({ type: 'start_attack', turn: nextTurn });
+        render();
+    }
+
+    function calculateSettlement(winnerId) {
+        const isMeWinner = (winnerId === game.myId);
+        const winnerSunkCount = isMeWinner ? game.sunkPlaneIds.length : game.enemySunkPlaneIds.length;
+        const multiplier = 3 - winnerSunkCount;
+        const betWinner = isMeWinner ? game.bet : game.enemyBet;
+        const betLoser = isMeWinner ? game.enemyBet : game.bet;
+        let rewardText = '';
+        if (betWinner && betLoser) {
+            rewardText = `${betWinner.amount * multiplier}${betWinner.type} + ${betLoser.amount * multiplier}${betLoser.type}`;
+        } else {
+            rewardText = '无赌注';
+        }
+        return { winnerId, multiplier, betWinner, betLoser, rewardText, winnerSunkCount };
+    }
+
+    function showGameOver(winnerId, settlement) {
+        game.phase = 'gameover';
+        render();
+        const isWinner = (winnerId === game.myId);
+        const winnerName = isWinner ? game.myName : game.enemyName;
+        const loserName = isWinner ? game.enemyName : game.myName;
+        infoTitle.textContent = isWinner ? '🎉 你赢了！' : '😞 你输了';
+        infoContent.innerHTML = `
+            <p>获胜方：${winnerName}</p>
+            <p>你坠机数：${game.sunkPlaneIds.length}</p>
+            <p>对方坠机数：${game.enemySunkPlaneIds.length}</p>
+            <p>结算倍数：${settlement.multiplier}</p>
+            <p>最终赢得赌注：${settlement.rewardText}</p>
+        `;
+        infoOverlay.classList.remove('hidden');
+        infoBtn.onclick = () => infoOverlay.classList.add('hidden');
+    }
+
+    function showBetOverlay() {
+        betOverlay.classList.remove('hidden');
+        betOptionsContainer.querySelectorAll('.bet-option').forEach(b => b.classList.remove('selected'));
+        betAmountInput.value = 0;
+        game.bet = null;
+    }
+
+    // 下注选项点击修复
+    betOptionsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.bet-option');
+        if (!btn) return;
+        betOptionsContainer.querySelectorAll('.bet-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    });
+
+    function confirmBet() {
+        const selected = betOptionsContainer.querySelector('.bet-option.selected');
+        if (!selected) { alert('请选择项目'); return; }
+        const type = selected.dataset.type;
+        const amount = parseInt(betAmountInput.value);
+        if (isNaN(amount) || amount < 0 || amount > 50) { alert('数量需在0~50之间'); return; }
+        game.bet = { type, amount };
+        betOverlay.classList.add('hidden');
+        send({ type: 'bet_submitted', bet: game.bet });
+        if (game.isHost && game.enemyBet) {
+            showBetReveal();
+            send({ type: 'bet_reveal', enemyBet: game.bet });
+        }
+        render();
+    }
+
+    function showBetReveal() {
+        const myBet = game.bet;
+        const enemyBet = game.enemyBet;
+        infoTitle.textContent = '赌注公开';
+        infoContent.innerHTML = `
+            <p>${game.myName} 下注：${myBet.type} ${myBet.amount}</p>
+            <p>${game.enemyName || '对方'} 下注：${enemyBet.type} ${enemyBet.amount}</p>
+        `;
+        infoOverlay.classList.remove('hidden');
+        infoBtn.onclick = () => {
+            infoOverlay.classList.add('hidden');
+            if (game.isHost) {
+                game.phase = 'attack';
+                game.myTurn = true;
+                send({ type: 'start_attack', turn: game.myId });
+                render();
+            } else {
+                statusText.textContent = '等待主机开始攻击...';
+            }
+        };
+    }
+
+    // 事件绑定
+    hostBtn.addEventListener('click', hostGame);
+    joinBtn.addEventListener('click', joinGame);
+
+    copyRoomBtn.addEventListener('click', () => {
+        const code = roomCodeInput.value;
+        navigator.clipboard.writeText(code).then(() => {
+            connStatus.textContent = '已复制房间号！';
+            setTimeout(() => connStatus.textContent = '等待对方加入...', 2000);
+        }).catch(() => {
+            roomCodeInput.select();
+            document.execCommand('copy');
+            connStatus.textContent = '已复制房间号！';
+        });
+    });
+
+    dirButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (game.phase !== 'setup') return;
+            game.selectedDir = btn.dataset.dir;
+            render();
+        });
+    });
+
+    ownBoardEl.addEventListener('click', (e) => {
+        const cell = e.target.closest('.cell');
+        if (!cell || game.phase !== 'setup') return;
+        const r = parseInt(cell.dataset.row);
+        const c = parseInt(cell.dataset.col);
+        placePlane(r, c);
+    });
+
+    ownBoardEl.addEventListener('mouseover', (e) => {
+        const cell = e.target.closest('.cell');
+        if (!cell || game.phase !== 'setup') return;
+        game.hoverPos = { r: parseInt(cell.dataset.row), c: parseInt(cell.dataset.col) };
+        renderOwnBoard();
+    });
+    ownBoardEl.addEventListener('mouseleave', () => {
+        if (game.phase === 'setup') {
+            game.hoverPos = null;
+            renderOwnBoard();
+        }
+    });
+
+    enemyBoardEl.addEventListener('click', (e) => {
+        const cell = e.target.closest('.cell');
+        if (!cell || game.phase !== 'attack' || !game.myTurn) return;
+        const r = parseInt(cell.dataset.row);
+        const c = parseInt(cell.dataset.col);
+        attackCell(r, c);
+    });
+
+    actionBtn.addEventListener('click', () => {
+        if (game.phase === 'setup') {
+            if (game.planes.length >= PLANES_PER_PLAYER) finishSetup();
+            else if (game.hoverPos) placePlane(game.hoverPos.r, game.hoverPos.c);
+            else alert('请先点击棋盘选择机头位置');
+        }
+    });
+
+    undoBtn.addEventListener('click', undoLastPlane);
+    betConfirmBtn.addEventListener('click', confirmBet);
+
+    document.addEventListener('keydown', (e) => {
+        if (game.phase !== 'setup') return;
+        const keyMap = { 'ArrowUp': 'up', 'ArrowRight': 'right', 'ArrowDown': 'down', 'ArrowLeft': 'left' };
+        if (keyMap[e.key]) {
+            game.selectedDir = keyMap[e.key];
+            e.preventDefault();
+            render();
+        }
+        if (e.key === 'z' && e.ctrlKey) undoLastPlane();
+    });
+
+    ownBoardEl.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (game.phase === 'setup') undoLastPlane();
+    });
+
+    render();
+})();
+</script>
+</body>
+</html>

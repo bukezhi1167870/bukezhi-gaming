@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>21点 · 小圈版</title>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<style>
+    :root {
+        --gold: #ffd700;
+        --gold-dim: #b8960a;
+        --wood-dark: #3d2611;
+        --wood: #6b4423;
+        --wood-light: #8b5a2b;
+        --felt-1: #17804e;
+        --felt-2: #0f5c37;
+        --felt-3: #0a4128;
+        --panel-1: #241a12;
+        --panel-2: #16100b;
+        --card-w: 64px;
+        --card-h: 90px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+    body {
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        background:
+            radial-gradient(ellipse at 50% -10%, #2b1f14 0%, #14100c 55%, #070605 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 22px 16px 40px;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        color: #eee;
+    }
+    .hidden { display: none !important; }
+
+    /* ================= 连接面板 ================= */
+    .connection-panel {
+        background: linear-gradient(180deg, var(--panel-1) 0%, var(--panel-2) 100%);
+        border: 2px solid var(--wood-light);
+        border-radius: 18px;
+        padding: 32px 28px;
+        max-width: 540px;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 22px;
+        box-shadow:
+            0 0 0 6px var(--wood-dark),
+            0 18px 50px rgba(0,0,0,0.8),
+            inset 0 0 50px rgba(0,0,0,0.5);
+    }
+    .connection-panel h2 {
+        color: var(--gold);
+        margin-bottom: 14px;
+        letter-spacing: 3px;
+        font-family: Georgia, 'Times New Roman', serif;
+        text-shadow: 0 2px 8px rgba(255,215,0,0.35);
+    }
+    .connection-panel p { color: #9c8e7a; font-size: 0.9rem; margin-bottom: 8px; }
+
+    input[type="text"], input[type="number"] {
+        padding: 9px 12px;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 1px solid #5a3d22;
+        background: #0d0a07;
+        color: var(--gold);
+        margin: 5px;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus {
+        border-color: var(--gold-dim);
+        box-shadow: 0 0 0 3px rgba(255,215,0,0.12);
+    }
+    input::placeholder { color: #6b5a45; }
+
+    .room-display { display: flex; align-items: center; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+    .room-display input {
+        width: 210px; text-align: center; font-weight: bold;
+        letter-spacing: 1px; user-select: text; cursor: text;
+    }
+    .copy-btn {
+        padding: 9px 14px; margin-left: 6px;
+        background: linear-gradient(180deg, #4a3320 0%, #2c1e11 100%);
+        color: var(--gold);
+        border: 1px solid var(--wood-light);
+        border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+        transition: all 0.18s;
+    }
+    .copy-btn:hover { background: linear-gradient(180deg, #61452b 0%, #3a2716 100%); }
+
+    /* ================= 按钮 ================= */
+    .action-btn {
+        padding: 11px 22px;
+        font-size: 0.95rem;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        letter-spacing: 1px;
+        transition: all 0.15s;
+        margin: 4px;
+        font-family: inherit;
+    }
+    .action-btn.primary {
+        background: linear-gradient(180deg, #ffe14a 0%, #d9ad00 55%, #b88f00 100%);
+        color: #2a1a00;
+        border: 1px solid #8b6f00;
+        box-shadow: 0 3px 0 #7a6000, 0 6px 16px rgba(0,0,0,0.5);
+        text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+    }
+    .action-btn.primary:hover:not(:disabled) {
+        background: linear-gradient(180deg, #fff07a 0%, #e8bd00 55%, #c99e00 100%);
+    }
+    .action-btn.primary:active:not(:disabled) {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #7a6000, 0 3px 10px rgba(0,0,0,0.5);
+    }
+    .action-btn.secondary {
+        background: linear-gradient(180deg, #4a3a2a 0%, #2a1e13 100%);
+        color: var(--gold);
+        border: 1px solid var(--wood-light);
+        box-shadow: 0 3px 0 #1a120a, 0 6px 16px rgba(0,0,0,0.5);
+    }
+    .action-btn.secondary:hover:not(:disabled) {
+        background: linear-gradient(180deg, #61492f 0%, #3a2716 100%);
+    }
+    .action-btn.secondary:active:not(:disabled) {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #1a120a, 0 3px 10px rgba(0,0,0,0.5);
+    }
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(0.6); }
+
+    /* ================= 游戏主容器 ================= */
+    .game-container {
+        background: linear-gradient(180deg, #2a1e14 0%, #19120c 100%);
+        border: 2px solid var(--wood-light);
+        border-radius: 20px;
+        padding: 20px;
+        width: 100%;
+        max-width: 780px;
+        margin-bottom: 24px;
+        box-shadow:
+            0 0 0 6px var(--wood-dark),
+            0 20px 55px rgba(0,0,0,0.85),
+            inset 0 0 60px rgba(0,0,0,0.5);
+    }
+    .header { text-align: center; margin-bottom: 16px; }
+    .header h1 {
+        font-size: 1.45rem;
+        letter-spacing: 4px;
+        color: var(--gold);
+        font-family: Georgia, 'Times New Roman', serif;
+        text-shadow: 0 2px 10px rgba(255,215,0,0.4), 0 1px 0 #000;
+    }
+    .header .status {
+        margin-top: 10px;
+        font-size: 1rem;
+        color: #ffe98a;
+        min-height: 24px;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+    .header .round-info {
+        margin-top: 5px; font-size: 0.8rem; color: #8d7a5f; letter-spacing: 1px;
+    }
+    .header .bet-info {
+        margin-top: 6px;
+        font-size: 0.82rem;
+        color: #c9bda9;
+        letter-spacing: 0.5px;
+        line-height: 1.5;
+    }
+    .header .bet-info .gold { color: var(--gold); font-weight: bold; }
+
+    /* ================= 牌桌 ================= */
+    .table {
+        position: relative;
+        border-radius: 26px;
+        padding: 24px 20px;
+        background:
+            radial-gradient(ellipse at 50% 42%, var(--felt-1) 0%, var(--felt-2) 48%, var(--felt-3) 100%);
+        box-shadow:
+            0 0 0 9px var(--wood),
+            0 0 0 12px #2b1a0c,
+            0 0 0 15px var(--wood-light),
+            inset 0 0 90px rgba(0,0,0,0.55),
+            inset 0 0 0 2px rgba(255,215,0,0.12),
+            0 14px 34px rgba(0,0,0,0.7);
+        overflow: hidden;
+    }
+    .table::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        background-image:
+            repeating-linear-gradient(0deg, rgba(255,255,255,0.022) 0 1px, transparent 1px 3px),
+            repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 3px);
+    }
+    .table-mark {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: Georgia, serif;
+        font-size: 2.1rem;
+        letter-spacing: 0.45em;
+        color: rgba(255,215,0,0.075);
+        font-weight: bold;
+        white-space: nowrap;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .hand-row {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: calc(var(--card-h) + 20px);
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: rgba(0,0,0,0.16);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 30px rgba(0,0,0,0.25);
+    }
+    .hand-name {
+        width: 80px;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+        font-weight: bold;
+        color: #b9d8c6;
+        text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        letter-spacing: 0.5px;
+    }
+    .hand-name.me { color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.35); }
+    .cards {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        flex: 1;
+        min-height: var(--card-h);
+    }
+    .hand-score {
+        width: 80px;
+        flex-shrink: 0;
+        font-size: 1.05rem;
+        font-weight: bold;
+        color: var(--gold);
+        text-align: left;
+        letter-spacing: 0.5px;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    .hand-score.bust { color: #ff5c5c; text-shadow: 0 0 10px rgba(255,60,60,0.5); }
+
+    .divider {
+        position: relative;
+        z-index: 1;
+        height: 2px;
+        margin: 10px 6px;
+        border-radius: 1px;
+        background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255,215,0,0.28) 18%,
+            rgba(255,215,0,0.28) 82%,
+            transparent 100%);
+    }
+
+    /* ================= 扑克牌 ================= */
+    .card {
+        width: var(--card-w);
+        height: var(--card-h);
+        border-radius: 9px;
+        background: linear-gradient(160deg, #ffffff 0%, #f2f2ef 100%);
+        color: #1a1a2e;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-family: Georgia, 'Times New Roman', serif;
+        box-shadow:
+            0 4px 12px rgba(0,0,0,0.55),
+            inset 0 0 0 1px rgba(0,0,0,0.12),
+            inset 0 -3px 6px rgba(0,0,0,0.08);
+        animation: cardIn 0.28s cubic-bezier(.2,.8,.3,1.2);
+        flex-shrink: 0;
+    }
+    @keyframes cardIn {
+        from { transform: translateY(-16px) scale(0.8) rotate(-6deg); opacity: 0; }
+        to   { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+    }
+    .card .c-rank { font-size: 1.35rem; line-height: 1.1; }
+    .card .c-suit { font-size: 1.3rem; line-height: 1.05; }
+    .card.red { color: #c41e1e; }
+    .card.back {
+        background:
+            repeating-linear-gradient(45deg, #7a1a1a 0 6px, #9b2626 6px 12px);
+        border: 2px solid #d4af37;
+        box-shadow:
+            inset 0 0 0 3px #4d1010,
+            inset 0 0 0 4px rgba(212,175,55,0.5),
+            0 4px 12px rgba(0,0,0,0.6);
+        position: relative;
+    }
+    .card.back::after {
+        content: '♠';
+        color: rgba(255,215,0,0.6);
+        font-size: 1.6rem;
+        text-shadow: 0 0 8px rgba(255,215,0,0.35);
+    }
+
+    /* ================= 控制区 ================= */
+    .controls {
+        margin-top: 18px;
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .controls .action-btn {
+        min-width: 150px;
+        font-size: 1.02rem;
+        padding: 13px 22px;
+    }
+
+    /* ================= 遮罩 / 弹窗 ================= */
+    .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 3, 2, 0.88);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        padding: 20px;
+        overflow-y: auto;
+    }
+    .modal-card {
+        background: linear-gradient(180deg, #2c2015 0%, #16100b 100%);
+        border: 3px solid var(--wood-light);
+        border-radius: 18px;
+        padding: 28px 30px 26px;
+        width: 100%;
+        max-width: min(520px, 94vw);
+        text-align: center;
+        box-shadow:
+            0 0 0 6px var(--wood-dark),
+            0 26px 70px rgba(0,0,0,0.95),
+            inset 0 0 50px rgba(0,0,0,0.55);
+        animation: modalIn 0.26s cubic-bezier(.2,.8,.3,1.1);
+    }
+    @keyframes modalIn {
+        from { transform: scale(0.88) translateY(14px); opacity: 0; }
+        to   { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .modal-card h2 {
+        font-size: 1.5rem;
+        margin-bottom: 16px;
+        color: var(--gold);
+        font-family: Georgia, 'Times New Roman', serif;
+        letter-spacing: 2px;
+        text-shadow: 0 2px 12px rgba(255,215,0,0.4);
+    }
+    .modal-card p { font-size: 1rem; margin-bottom: 10px; color: #c9bda9; line-height: 1.6; }
+    .modal-card .small { font-size: 0.85rem; color: #9c8e7a; }
+    #infoContent { text-align: center; font-size: 1.05rem; line-height: 1.75; color: #d8cdb8; }
+    #infoContent .big {
+        font-size: 1.35rem;
+        font-weight: bold;
+        color: var(--gold);
+        text-shadow: 0 0 12px rgba(255,215,0,0.4);
+    }
+
+    /* 身份选择 */
+    .identity-options { display: flex; gap: 10px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+    .identity-btn {
+        padding: 12px 24px;
+        font-size: 1.1rem;
+        border: 2px solid #5a3d22;
+        border-radius: 10px;
+        cursor: pointer;
+        background: linear-gradient(180deg, #33261a 0%, #1d150e 100%);
+        color: #cbbda5;
+        font-weight: bold;
+        font-family: inherit;
+        transition: all 0.16s;
+    }
+    .identity-btn:hover { border-color: var(--wood-light); color: #f0e2c8; }
+    .identity-btn.selected {
+        background: linear-gradient(180deg, #ffe14a 0%, #d9ad00 100%);
+        color: #2a1a00;
+        border-color: var(--gold);
+        box-shadow: 0 0 18px rgba(255,215,0,0.45);
+    }
+
+    .punish-pool {
+        margin: 10px 0;
+        font-size: 0.9rem;
+        color: #b9d8c6;
+        min-height: 24px;
+    }
+
+    .rate-table {
+        background: rgba(0,0,0,0.3);
+        border-radius: 10px;
+        padding: 12px;
+        margin: 12px 0;
+        font-size: 0.85rem;
+        color: #c9bda9;
+        text-align: left;
+        line-height: 1.7;
+    }
+    .rate-table .gold { color: var(--gold); font-weight: bold; }
+
+    /* 下注 */
+    .bet-options { display: flex; gap: 10px; margin: 16px 0 6px; flex-wrap: wrap; justify-content: center; }
+    .bet-option {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border: 2px solid #5a3d22;
+        border-radius: 10px;
+        cursor: pointer;
+        background: linear-gradient(180deg, #33261a 0%, #1d150e 100%);
+        color: #cbbda5;
+        font-weight: bold;
+        font-family: inherit;
+        transition: all 0.16s;
+    }
+    .bet-option:hover { border-color: var(--wood-light); color: #f0e2c8; }
+    .bet-option.selected {
+        background: linear-gradient(180deg, #ffe14a 0%, #d9ad00 100%);
+        color: #2a1a00;
+        border-color: var(--gold);
+        box-shadow: 0 0 18px rgba(255,215,0,0.45);
+    }
+    #betAmount {
+        font-size: 1.2rem;
+        padding: 9px 12px;
+        width: 120px;
+        text-align: center;
+        margin: 8px 0 18px;
+    }
+
+    /* ================= 规则 ================= */
+    .rule-section {
+        background: linear-gradient(180deg, var(--panel-1) 0%, var(--panel-2) 100%);
+        color: #bdb0a0;
+        border: 2px solid var(--wood);
+        border-radius: 16px;
+        padding: 22px 24px;
+        max-width: 780px;
+        width: 100%;
+        box-shadow:
+            0 0 0 5px var(--wood-dark),
+            0 14px 40px rgba(0,0,0,0.7),
+            inset 0 0 50px rgba(0,0,0,0.4);
+    }
+    .rule-section h3 {
+        color: var(--gold);
+        text-align: center;
+        margin-bottom: 14px;
+        letter-spacing: 3px;
+        font-family: Georgia, serif;
+        text-shadow: 0 2px 10px rgba(255,215,0,0.3);
+    }
+    .rule-section ul { list-style: none; padding-left: 0; }
+    .rule-section li {
+        margin-bottom: 8px;
+        line-height: 1.65;
+        font-size: 0.92rem;
+        padding-left: 16px;
+        position: relative;
+    }
+    .rule-section li::before {
+        content: '◆';
+        position: absolute;
+        left: 0;
+        color: var(--wood-light);
+        font-size: 0.7rem;
+        top: 0.35em;
+    }
+    .rule-section li strong { color: var(--gold); }
+    .rule-section a { color: var(--gold); text-decoration: none; }
+    .rule-section a:hover { text-decoration: underline; }
+
+    /* ================= 响应式 ================= */
+    @media (max-width: 620px) {
+        :root { --card-w: 50px; --card-h: 72px; }
+        body { padding: 14px 10px 30px; }
+        .game-container { padding: 14px; }
+        .table { padding: 18px 12px; border-radius: 20px; }
+        .hand-row { padding: 8px 10px; gap: 10px; }
+        .hand-name, .hand-score { width: 62px; font-size: 0.78rem; }
+        .hand-score { font-size: 0.92rem; }
+        .card .c-rank { font-size: 1.05rem; }
+        .card .c-suit { font-size: 1rem; }
+        .card.back::after { font-size: 1.25rem; }
+        .header h1 { font-size: 1.1rem; letter-spacing: 2px; }
+        .controls .action-btn { min-width: 120px; padding: 12px 16px; font-size: 0.94rem; }
+        .table-mark { font-size: 1.3rem; letter-spacing: 0.3em; }
+        .modal-card { padding: 22px 18px; }
+    }
+</style>
+</head>
+<body>
+
+<!-- ============ 连接面板 ============ -->
+<div class="connection-panel" id="connectionPanel">
+    <h2>♠ 联机设置 ♥</h2>
+    <p>输入昵称（6字以内），然后创建或加入房间</p>
+    <div>
+        <input type="text" id="nicknameInput" placeholder="昵称" maxlength="6" value="玩家1">
+        <button class="action-btn primary" id="hostBtn">创建房间</button>
+        <input type="text" id="roomInput" placeholder="输入16位房间号">
+        <button class="action-btn secondary" id="joinBtn">加入房间</button>
+    </div>
+    <div class="room-display hidden" id="roomDisplayArea">
+        <input type="text" id="roomCode" readonly>
+        <button class="copy-btn" id="copyRoomBtn">复制</button>
+    </div>
+    <p id="connStatus" style="margin-top:12px; color:#ffd700; min-height:22px;"></p>
+</div>
+
+<!-- ============ 游戏主界面 ============ -->
+<div class="game-container hidden" id="gameContainer">
+    <div class="header">
+        <h1>♠ 21点 · 小圈SP版 ♥</h1>
+        <div class="status" id="statusText">等待连接...</div>
+        <div class="round-info" id="roundInfo"></div>
+        <div class="bet-info" id="betInfo"></div>
+    </div>
+
+    <div class="table">
+        <div class="table-mark">BLACKJACK</div>
+
+        <!-- 对方手牌 -->
+        <div class="hand-row">
+            <div class="hand-name" id="enemyNameLabel">对方</div>
+            <div class="cards" id="enemyCards"></div>
+            <div class="hand-score" id="enemyScore">--</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 自己手牌 -->
+        <div class="hand-row">
+            <div class="hand-name me" id="ownNameLabel">我</div>
+            <div class="cards" id="ownCards"></div>
+            <div class="hand-score" id="ownScore">--</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="action-btn primary" id="hitBtn">🃏 要牌</button>
+        <button class="action-btn secondary" id="standBtn">✋ 停牌</button>
+    </div>
+</div>
+
+<!-- ============ 设置遮罩（身份 + 汇率确认） ============ -->
+<div class="overlay hidden" id="setupOverlay">
+    <div class="modal-card">
+        <h2>🎭 身份与惩罚设置</h2>
+        <p class="small">身份公开，整场固定。选择身份后，你输了只能承受该身份对应的惩罚项目。</p>
+        <div class="identity-options" id="identityOptions">
+            <button class="identity-btn" data-identity="主">主</button>
+            <button class="identity-btn" data-identity="贝">贝</button>
+            <button class="identity-btn" data-identity="双">双</button>
+        </div>
+        <div class="punish-pool" id="punishPoolDisplay"></div>
+
+        <div class="rate-table">
+            <div>💱 金币汇率（1 金币可兑换的惩罚数量）：</div>
+            <div>1 金币 = <span class="gold">5 寸止</span></div>
+            <div>1 金币 = <span class="gold">10 强高</span></div>
+            <div>1 金币 = <span class="gold">15 深蹲 / 俯卧撑 / 仰卧起坐 / 数据线</span></div>
+            <div>1 金币 = <span class="gold">20 戒尺</span></div>
+        </div>
+
+        <button class="action-btn secondary" id="confirmRateBtn">我已知晓汇率</button>
+        <button class="action-btn primary" id="setupReadyBtn" disabled>准备</button>
+        <p class="small" id="setupStatus" style="margin-top:10px;"></p>
+    </div>
+</div>
+
+<!-- ============ 下注遮罩 ============ -->
+<div class="overlay hidden" id="betOverlay">
+    <div class="modal-card">
+        <h2>🎲 请下注</h2>
+        <p>选择你输了以后要承受的惩罚项目（单选）：</p>
+        <div class="bet-options" id="betOptions"></div>
+        <p>下注金币数量（1-10 整数）：</p>
+        <input type="number" id="betAmount" min="1" max="10" value="1">
+        <br>
+        <button class="action-btn primary" id="betConfirmBtn">确认下注</button>
+        <p class="small" style="margin-top:8px;">要牌时，每次额外增加与初始下注相同的金币。</p>
+    </div>
+</div>
+
+<!-- ============ 通用遮罩 ============ -->
+<div class="overlay hidden" id="infoOverlay">
+    <div class="modal-card">
+        <h2 id="infoTitle">提示</h2>
+        <div id="infoContent"></div>
+        <button class="action-btn primary" id="infoBtn">确定</button>
+    </div>
+</div>
+
+<!-- ============ 规则说明 ============ -->
+<div class="rule-section">
+    <h3>📜 游戏规则</h3>
+    <ul>
+        <li><strong>目标：</strong>让手牌点数尽量接近 21 点，但不得超过。</li>
+        <li><strong>点数：</strong>A 记 11 点（爆牌时自动降为 1 点），J / Q / K 记 10 点，其余按面值。</li>
+        <li><strong>明暗牌：</strong>起手两张牌双方各自可见、对方不可见；从第三张（加注）开始，新发的牌双方公开可见。</li>
+        <li><strong>流程：</strong>双方各发两张暗牌 → 各自选择「要牌」或「停牌」→ 双方都停牌后同时亮牌比较。</li>
+        <li><strong>胜负：</strong>点数大者获胜；超过 21 点（爆牌）直接判负；双方点数相同为平局。</li>
+        <li><strong>黑杰克：</strong>起手两张即为 21 点（A + 10/J/Q/K），结算总金币 ×2。</li>
+        <li><strong>身份与惩罚：</strong>开局选择身份（主/贝/双），身份公开整场固定。每局下注时从自己身份对应的惩罚池中选择一项作为败者惩罚项目。</li>
+        <li><strong>下注：</strong>每局双方秘密选择惩罚项目和 1~10 金币，下注互不可见，双方确认后公开。要牌时己方累计赌注增加初始下注额。</li>
+        <li><strong>结算：</strong>总金币 = 双方累计赌注之和（黑杰克 ×2）。败者承受 = 败者选择的惩罚项目 × 总金币 × 汇率。平局或双方爆牌无惩罚。</li>
+        <li><strong>游戏作者：</strong>不可知，更多BDSM小游戏或内容请至X账号：<a href="https://x.com/bukezhi1167870" target="_blank">@bukezhi1167870</a></li>
+    </ul>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    const SUITS = ['♠', '♥', '♦', '♣'];
+    const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+    // 汇率：1 金币可兑换的惩罚数量
+    const RATE = {
+        '寸止': 5,
+        '强高': 10,
+        '深蹲': 15,
+        '俯卧撑': 15,
+        '仰卧起坐': 15,
+        '数据线': 15,
+        '戒尺': 20
+    };
+
+    // 身份对应可选惩罚池
+    const IDENTITY_POOL = {
+        '主': ['深蹲', '俯卧撑', '仰卧起坐'],
+        '贝': ['戒尺', '数据线', '强高', '寸止'],
+        '双': ['深蹲', '俯卧撑', '仰卧起坐', '戒尺', '数据线', '强高', '寸止']
+    };
+
+    /* ====================== 游戏状态 ====================== */
+    const game = {
+        phase: 'idle',            // idle | setup | betting | bet_reveal | playing | result
+        myId: 0,
+        myName: '',
+        enemyName: '',
+        connected: false,
+        conn: null,
+        isHost: false,
+        roomCode: null,
+
+        // 身份
+        myIdentity: null,
+        enemyIdentity: null,
+        mySetupReady: false,
+        enemySetupReady: false,
+        rateConfirmed: false,
+
+        // 下注
+        myBetType: null,
+        enemyBetType: null,
+        myInitialBet: 0,
+        enemyInitialBet: 0,
+        myTotalBet: 0,
+        enemyTotalBet: 0,
+
+        // 牌局
+        deck: [],
+        myHand: [],
+        enemyHand: [],
+        enemyHandCount: 0,
+        enemyVisible: [],
+
+        myStand: false,
+        enemyStand: false,
+        myBust: false,
+        enemyBust: false,
+        myRevealed: false,
+        enemyRevealed: false,
+
+        myReady: false,
+        enemyReady: false,
+
+        myNextReady: false,
+        enemyNextReady: false,
+
+        round: 1,
+        myWins: 0,
+        enemyWins: 0
+    };
+
+    /* ====================== DOM ====================== */
+    const connectionPanel = document.getElementById('connectionPanel');
+    const gameContainer   = document.getElementById('gameContainer');
+    const connStatus      = document.getElementById('connStatus');
+    const hostBtn         = document.getElementById('hostBtn');
+    const joinBtn         = document.getElementById('joinBtn');
+    const roomInput       = document.getElementById('roomInput');
+    const nicknameInput   = document.getElementById('nicknameInput');
+    const roomDisplayArea = document.getElementById('roomDisplayArea');
+    const roomCodeInput   = document.getElementById('roomCode');
+    const copyRoomBtn     = document.getElementById('copyRoomBtn');
+
+    const statusText      = document.getElementById('statusText');
+    const roundInfo       = document.getElementById('roundInfo');
+    const betInfo         = document.getElementById('betInfo');
+    const ownNameLabel    = document.getElementById('ownNameLabel');
+    const enemyNameLabel  = document.getElementById('enemyNameLabel');
+    const ownCardsEl      = document.getElementById('ownCards');
+    const enemyCardsEl    = document.getElementById('enemyCards');
+    const ownScoreEl      = document.getElementById('ownScore');
+    const enemyScoreEl    = document.getElementById('enemyScore');
+    const hitBtn          = document.getElementById('hitBtn');
+    const standBtn        = document.getElementById('standBtn');
+
+    const setupOverlay    = document.getElementById('setupOverlay');
+    const identityOptions = document.getElementById('identityOptions');
+    const punishPoolDisplay = document.getElementById('punishPoolDisplay');
+    const confirmRateBtn  = document.getElementById('confirmRateBtn');
+    const setupReadyBtn   = document.getElementById('setupReadyBtn');
+    const setupStatus     = document.getElementById('setupStatus');
+
+    const betOverlay      = document.getElementById('betOverlay');
+    const betOptionsEl    = document.getElementById('betOptions');
+    const betAmountInput  = document.getElementById('betAmount');
+    const betConfirmBtn   = document.getElementById('betConfirmBtn');
+
+    const infoOverlay     = document.getElementById('infoOverlay');
+    const infoTitle       = document.getElementById('infoTitle');
+    const infoContent     = document.getElementById('infoContent');
+    const infoBtn         = document.getElementById('infoBtn');
+
+    /* ====================== 牌堆 / 点数 ====================== */
+    function newDeck() {
+        const deck = [];
+        for (const s of SUITS) {
+            for (const r of RANKS) deck.push({ rank: r, suit: s });
+        }
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+    }
+
+    function drawCard() {
+        if (!game.deck || game.deck.length === 0) game.deck = newDeck();
+        return game.deck.pop();
+    }
+
+    function handValue(hand) {
+        let total = 0, aces = 0;
+        for (const card of hand) {
+            if (card.rank === 'A') { aces++; total += 11; }
+            else if (card.rank === 'J' || card.rank === 'Q' || card.rank === 'K') total += 10;
+            else total += Number(card.rank);
+        }
+        while (total > 21 && aces > 0) { total -= 10; aces--; }
+        return total;
+    }
+
+    function isBlackjack(hand) {
+        return !!(hand && hand.length === 2 && handValue(hand) === 21);
+    }
+
+    /* ====================== 渲染 ====================== */
+    function makeCardEl(card, faceDown) {
+        const el = document.createElement('div');
+        el.className = 'card';
+        if (faceDown || !card) {
+            el.classList.add('back');
+            return el;
+        }
+        if (card.suit === '♥' || card.suit === '♦') el.classList.add('red');
+        const rank = document.createElement('span');
+        rank.className = 'c-rank';
+        rank.textContent = card.rank;
+        const suit = document.createElement('span');
+        suit.className = 'c-suit';
+        suit.textContent = card.suit;
+        el.appendChild(rank);
+        el.appendChild(suit);
+        return el;
+    }
+
+    function render() {
+        /* --- 我的牌 --- */
+        ownCardsEl.innerHTML = '';
+        game.myHand.forEach(c => ownCardsEl.appendChild(makeCardEl(c, false)));
+        if (game.myHand.length === 0) {
+            ownScoreEl.textContent = '--';
+            ownScoreEl.className = 'hand-score';
+        } else {
+            const v = handValue(game.myHand);
+            ownScoreEl.textContent = v + ' 点';
+            ownScoreEl.className = 'hand-score' + (v > 21 ? ' bust' : '');
+        }
+
+        /* --- 对方的牌 --- */
+        enemyCardsEl.innerHTML = '';
+        if (game.phase === 'result' && game.enemyHand.length > 0) {
+            game.enemyHand.forEach(c => enemyCardsEl.appendChild(makeCardEl(c, false)));
+            const v = handValue(game.enemyHand);
+            enemyScoreEl.textContent = v + ' 点';
+            enemyScoreEl.className = 'hand-score' + (v > 21 ? ' bust' : '');
+        } else {
+            const n = game.enemyHandCount || 0;
+            for (let i = 0; i < n; i++) {
+                const c = game.enemyVisible[i] || null;
+                enemyCardsEl.appendChild(makeCardEl(c, !c));
+            }
+            enemyScoreEl.textContent = n > 0 ? '? 点' : '--';
+            enemyScoreEl.className = 'hand-score';
+        }
+
+        /* --- 状态文字 --- */
+        if (game.phase === 'setup') {
+            statusText.textContent = '身份设置中...';
+        } else if (game.phase === 'betting') {
+            statusText.textContent = '请下注...';
+        } else if (game.phase === 'bet_reveal') {
+            statusText.textContent = '赌注公开';
+        } else if (game.phase === 'playing') {
+            statusText.textContent = game.myStand
+                ? '你已停牌，等待对方...'
+                : '你的回合：要牌 或 停牌';
+        } else if (game.phase === 'result') {
+            statusText.textContent = '本局结束';
+        } else {
+            statusText.textContent = '等待连接...';
+        }
+
+        roundInfo.textContent =
+            `第 ${game.round} 局　|　${game.myName} ${game.myWins} : ${game.enemyWins} ${game.enemyName || '对方'}`;
+
+        // 下注信息栏
+        if (game.phase === 'betting' || game.phase === 'bet_reveal' || game.phase === 'playing' || game.phase === 'result') {
+            const myId = game.myIdentity ? `[${game.myIdentity}]` : '';
+            const enId = game.enemyIdentity ? `[${game.enemyIdentity}]` : '';
+            const myBet = game.myBetType ? `${game.myBetType} ×${game.myTotalBet}` : '未下注';
+            const enBet = game.enemyBetType ? `${game.enemyBetType} ×${game.enemyTotalBet}` : '未下注';
+            const total = game.myTotalBet + game.enemyTotalBet;
+            betInfo.innerHTML =
+                `${game.myName}${myId}：${myBet}　|　` +
+                `${game.enemyName || '对方'}${enId}：${enBet}　|　` +
+                `总金币：<span class="gold">${total}</span>`;
+        } else {
+            betInfo.innerHTML = '';
+        }
+
+        /* --- 按钮 --- */
+        const canAct = (game.phase === 'playing' && !game.myStand);
+        hitBtn.disabled = !canAct;
+        standBtn.disabled = !canAct;
+    }
+
+    function updateLabels() {
+        ownNameLabel.textContent = game.myName || '我';
+        enemyNameLabel.textContent = game.enemyName || '对方';
+    }
+
+    /* ====================== 设置阶段 ====================== */
+    function showSetup() {
+        game.phase = 'setup';
+        connectionPanel.classList.add('hidden');
+        gameContainer.classList.remove('hidden');
+        setupOverlay.classList.remove('hidden');
+        renderSetup();
+    }
+
+    function renderSetup() {
+        // 身份按钮选中状态
+        identityOptions.querySelectorAll('.identity-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.identity === game.myIdentity);
+        });
+        // 惩罚池显示
+        if (game.myIdentity) {
+            punishPoolDisplay.textContent = '你输了只能承受：' + IDENTITY_POOL[game.myIdentity].join(' / ');
+        } else {
+            punishPoolDisplay.textContent = '请选择身份';
+        }
+        // 汇率确认按钮
+        confirmRateBtn.disabled = game.rateConfirmed;
+        confirmRateBtn.textContent = game.rateConfirmed ? '已确认汇率' : '我已知晓汇率';
+        // 准备按钮
+        setupReadyBtn.disabled = !(game.myIdentity && game.rateConfirmed) || game.mySetupReady;
+        setupReadyBtn.textContent = game.mySetupReady ? '已准备' : '准备';
+        // 状态
+        if (game.mySetupReady && game.enemySetupReady) {
+            setupStatus.textContent = '双方已准备，即将开始...';
+        } else if (game.mySetupReady) {
+            setupStatus.textContent = '等待对方准备...';
+        } else if (game.enemySetupReady) {
+            setupStatus.textContent = '对方已准备，请尽快准备';
+        } else {
+            setupStatus.textContent = '';
+        }
+    }
+
+    identityOptions.addEventListener('click', (e) => {
+        const btn = e.target.closest('.identity-btn');
+        if (!btn || game.mySetupReady) return;
+        game.myIdentity = btn.dataset.identity;
+        renderSetup();
+    });
+
+    confirmRateBtn.addEventListener('click', () => {
+        if (game.rateConfirmed) return;
+        game.rateConfirmed = true;
+        renderSetup();
+    });
+
+    setupReadyBtn.addEventListener('click', () => {
+        if (!game.myIdentity || !game.rateConfirmed || game.mySetupReady) return;
+        game.mySetupReady = true;
+        send({ type: 'setup_ready', identity: game.myIdentity });
+        renderSetup();
+        checkBothSetupReady();
+    });
+
+    function checkBothSetupReady() {
+        if (game.mySetupReady && game.enemySetupReady) {
+            if (game.isHost) {
+                send({ type: 'start_betting' });
+                startBetting();
+            }
+        }
+    }
+
+    /* ====================== 下注阶段 ====================== */
+    function startBetting() {
+        game.phase = 'betting';
+        setupOverlay.classList.add('hidden');
+        // 重置本局数据
+        game.myBetType = null;
+        game.enemyBetType = null;
+        game.myInitialBet = 0;
+        game.enemyInitialBet = 0;
+        game.myTotalBet = 0;
+        game.enemyTotalBet = 0;
+        game.myHand = [];
+        game.enemyHand = [];
+        game.enemyHandCount = 0;
+        game.enemyVisible = [];
+        game.myStand = false;
+        game.enemyStand = false;
+        game.myBust = false;
+        game.enemyBust = false;
+        game.myRevealed = false;
+        game.enemyRevealed = false;
+        game.myReady = false;
+        game.enemyReady = false;
+        game.myNextReady = false;
+        game.enemyNextReady = false;
+
+        render();
+        showBetOverlay();
+    }
+
+    function showBetOverlay() {
+        // 动态生成可选惩罚项目
+        betOptionsEl.innerHTML = '';
+        const pool = IDENTITY_POOL[game.myIdentity] || [];
+        pool.forEach(type => {
+            const btn = document.createElement('button');
+            btn.className = 'bet-option';
+            btn.dataset.type = type;
+            btn.type = 'button';
+            btn.textContent = type;
+            betOptionsEl.appendChild(btn);
+        });
+        betAmountInput.value = 1;
+        betOverlay.classList.remove('hidden');
+    }
+
+    betOptionsEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.bet-option');
+        if (!btn) return;
+        betOptionsEl.querySelectorAll('.bet-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    });
+
+    function confirmBet() {
+        const selected = betOptionsEl.querySelector('.bet-option.selected');
+        if (!selected) { alert('请选择惩罚项目'); return; }
+        const type = selected.dataset.type;
+        const amount = parseInt(betAmountInput.value, 10);
+        if (isNaN(amount) || amount < 1 || amount > 10) { alert('金币数量需在 1~10 之间'); return; }
+
+        game.myBetType = type;
+        game.myInitialBet = amount;
+        game.myTotalBet = amount;
+        betOverlay.classList.add('hidden');
+        send({
+            type: 'bet_submitted',
+            identity: game.myIdentity,
+            betType: type,
+            betAmount: amount,
+            totalBet: amount
+        });
+        checkBothBets();
+        render();
+    }
+
+    function checkBothBets() {
+        if (game.phase === 'betting' && game.myBetType && game.enemyBetType) {
+            game.phase = 'bet_reveal';
+            showBetReveal();
+            render();
+        }
+    }
+
+    function showBetReveal() {
+        infoTitle.textContent = '🎲 赌注公开';
+        const total = game.myTotalBet + game.enemyTotalBet;
+        infoContent.innerHTML = `
+            <p><span class="big">${game.myName}</span>（${game.myIdentity}）下注<br>${game.myBetType} × ${game.myInitialBet} 金币</p>
+            <p style="margin-top:12px;"><span class="big">${game.enemyName || '对方'}</span>（${game.enemyIdentity}）下注<br>${game.enemyBetType} × ${game.enemyInitialBet} 金币</p>
+            <p style="margin-top:12px;">当前总金币：<span class="big">${total}</span></p>
+            <p class="small">要牌时，每次额外增加与初始下注相同的金币。</p>
+        `;
+        infoBtn.textContent = '开始发牌';
+        infoOverlay.classList.remove('hidden');
+        infoBtn.onclick = () => {
+            infoOverlay.classList.add('hidden');
+            game.myReady = true;
+            send({ type: 'ready' });
+            checkBothReady();
+        };
+    }
+
+    function checkBothReady() {
+        if (game.phase === 'bet_reveal' && game.myReady && game.enemyReady) {
+            game.myReady = false;
+            game.enemyReady = false;
+            startRound();
+        }
+    }
+
+    /* ====================== 一局开始 ====================== */
+    function startRound() {
+        game.deck = newDeck();
+        game.myHand = [drawCard(), drawCard()];
+        game.enemyHand = [];
+        game.enemyHandCount = 2;
+        game.enemyVisible = [null, null];
+
+        game.myStand = false;
+        game.enemyStand = false;
+        game.myBust = false;
+        game.enemyBust = false;
+        game.myRevealed = false;
+        game.enemyRevealed = false;
+
+        game.phase = 'playing';
+        render();
+    }
+
+    /* ====================== 玩家动作 ====================== */
+    function hit() {
+        if (game.phase !== 'playing' || game.myStand) return;
+
+        // 要牌加注：增加初始下注额
+        game.myTotalBet += game.myInitialBet;
+
+        game.myHand.push(drawCard());
+        const n = game.myHand.length;
+        const isPublic = n >= 3;
+        send({
+            type: 'drew',
+            count: n,
+            card: isPublic ? game.myHand[n - 1] : null,
+            totalBet: game.myTotalBet
+        });
+
+        const v = handValue(game.myHand);
+        if (v > 21) {
+            game.myBust = true;
+            game.myStand = true;
+            send({ type: 'stand' });
+            render();
+            checkBothDone();
+            return;
+        }
+        render();
+    }
+
+    function stand() {
+        if (game.phase !== 'playing' || game.myStand) return;
+        game.myStand = true;
+        send({ type: 'stand' });
+        render();
+        checkBothDone();
+    }
+
+    function checkBothDone() {
+        if (game.phase !== 'playing') return;
+
+        if (game.myStand && game.enemyStand && !game.myRevealed) {
+            game.myRevealed = true;
+            send({ type: 'reveal', hand: game.myHand });
+        }
+
+        if (game.myRevealed && game.enemyRevealed) {
+            game.phase = 'result';
+            render();
+            setTimeout(showResult, 380);
+        }
+    }
+
+    /* ====================== 结算 ====================== */
+    function showResult() {
+        const myV = handValue(game.myHand);
+        const enV = handValue(game.enemyHand);
+        const myBust = myV > 21;
+        const enBust = enV > 21;
+
+        let winner;
+        if (myBust && enBust) winner = 'draw';
+        else if (myBust) winner = 'enemy';
+        else if (enBust) winner = 'me';
+        else if (myV > enV) winner = 'me';
+        else if (myV < enV) winner = 'enemy';
+        else winner = 'draw';
+
+        // 黑杰克倍数
+        let mult = 1;
+        if (winner === 'me' && isBlackjack(game.myHand)) mult = 2;
+        if (winner === 'enemy' && isBlackjack(game.enemyHand)) mult = 2;
+
+        if (winner === 'me') game.myWins++;
+        else if (winner === 'enemy') game.enemyWins++;
+
+        const totalGold = (game.myTotalBet + game.enemyTotalBet) * mult;
+
+        let rewardHtml = '';
+        if (winner === 'draw') {
+            rewardHtml = '<p style="margin-top:14px;">平局 / 双方爆牌 —— 无惩罚 🤝</p>';
+        } else {
+            // 败者
+            const loserName = winner === 'me' ? (game.enemyName || '对方') : game.myName;
+            const loserType = winner === 'me' ? game.enemyBetType : game.myBetType;
+            const rate = RATE[loserType] || 0;
+            const punishAmount = totalGold * rate;
+            rewardHtml = `
+                <p style="margin-top:14px;">总金币（含倍数）：<span class="big">${totalGold}</span>${mult === 2 ? '（黑杰克 ×2）' : ''}</p>
+                <p>败者：<span class="big">${loserName}</span></p>
+                <p>惩罚项目：<span class="big">${loserType}</span>（汇率 ${rate}/金币）</p>
+                <p>最终惩罚：<span class="big">${punishAmount} ${loserType}</span></p>
+            `;
+        }
+
+        infoTitle.textContent =
+            winner === 'me' ? '🎉 你赢了！' :
+            winner === 'enemy' ? '😞 你输了' : '🤝 平局';
+
+        infoContent.innerHTML = `
+            <p>${game.myName}（${game.myIdentity}）：<span class="big">${myV}</span> 点${myBust ? '（爆牌）' : ''}　下注 ${game.myBetType} ×${game.myTotalBet}</p>
+            <p>${game.enemyName || '对方'}（${game.enemyIdentity}）：<span class="big">${enV}</span> 点${enBust ? '（爆牌）' : ''}　下注 ${game.enemyBetType} ×${game.enemyTotalBet}</p>
+            ${rewardHtml}
+        `;
+
+        infoBtn.textContent = '下一局';
+        infoBtn.disabled = false;
+        infoOverlay.classList.remove('hidden');
+
+        // 双方都要点下一局
+        game.myNextReady = false;
+        game.enemyNextReady = false;
+        infoBtn.onclick = () => {
+            if (game.myNextReady) return;
+            game.myNextReady = true;
+            infoBtn.disabled = true;
+            infoBtn.textContent = '等待对方...';
+            send({ type: 'next_round_ready' });
+            checkBothNextReady();
+        };
+        render();
+    }
+
+    function checkBothNextReady() {
+        if (game.myNextReady && game.enemyNextReady) {
+            infoOverlay.classList.add('hidden');
+            game.round++;
+            startBetting();
+        }
+    }
+
+    /* ====================== 联机 ====================== */
+    let peer = null;
+
+    function generateRoomCode() {
+        let code = '';
+        for (let i = 0; i < 16; i++) code += Math.floor(Math.random() * 10);
+        return code;
+    }
+
+    function formatRoomCode(code) {
+        return code.match(/.{1,4}/g).join('-');
+    }
+
+    function hostGame() {
+        const name = nicknameInput.value.trim() || '玩家1';
+        game.myName = name;
+        const code = generateRoomCode();
+        game.roomCode = code;
+
+        peer = new Peer(code);
+        peer.on('open', () => {
+            roomCodeInput.value = formatRoomCode(code);
+            roomDisplayArea.classList.remove('hidden');
+            connStatus.textContent = '等待对方加入...';
+            hostBtn.disabled = true;
+            joinBtn.disabled = true;
+            roomInput.disabled = true;
+            nicknameInput.disabled = true;
+        });
+
+        peer.on('connection', (conn) => {
+            conn.on('open', () => {
+                game.conn = conn;
+                game.connected = true;
+                game.isHost = true;
+                game.myId = 1;
+                connStatus.textContent = '对方已连接，正在交换昵称...';
+                send({ type: 'nickname', name: game.myName });
+            });
+            conn.on('data', handleData);
+            conn.on('close', () => { alert('连接已断开'); location.reload(); });
+        });
+
+        peer.on('error', (err) => {
+            console.error(err);
+            alert('PeerJS错误: ' + err.type);
+        });
+    }
+
+    function joinGame() {
+        const name = nicknameInput.value.trim() || '玩家2';
+        game.myName = name;
+
+        const input = roomInput.value.trim().replace(/-/g, '');
+        if (!/^\d{16}$/.test(input)) { alert('请输入有效的16位数字房间号'); return; }
+        const remoteId = input;
+
+        peer = new Peer();
+        peer.on('open', () => {
+            const conn = peer.connect(remoteId, { reliable: true });
+            conn.on('open', () => {
+                game.conn = conn;
+                game.connected = true;
+                game.isHost = false;
+                game.myId = 2;
+                connStatus.textContent = '已连接，等待主机...';
+                send({ type: 'nickname', name: game.myName });
+            });
+            conn.on('data', handleData);
+            conn.on('close', () => { alert('连接已断开'); location.reload(); });
+        });
+
+        peer.on('error', (err) => {
+            console.error(err);
+            alert('PeerJS错误: ' + err.type);
+        });
+    }
+
+    function send(data) {
+        if (game.conn && game.conn.open) {
+            try { game.conn.send(data); } catch (e) { console.error(e); }
+        }
+    }
+
+    function handleData(data) {
+        if (!data || !data.type) return;
+
+        switch (data.type) {
+            case 'nickname':
+                game.enemyName = data.name;
+                updateLabels();
+                if (game.myName && game.enemyName && game.phase === 'idle') {
+                    showSetup();
+                }
+                break;
+
+            case 'setup_ready':
+                game.enemyIdentity = data.identity;
+                game.enemySetupReady = true;
+                renderSetup();
+                checkBothSetupReady();
+                break;
+
+            case 'start_betting':
+                startBetting();
+                break;
+
+            case 'bet_submitted':
+                game.enemyIdentity = data.identity;
+                game.enemyBetType = data.betType;
+                game.enemyInitialBet = data.betAmount;
+                game.enemyTotalBet = data.totalBet;
+                checkBothBets();
+                render();
+                break;
+
+            case 'ready':
+                game.enemyReady = true;
+                checkBothReady();
+                break;
+
+            case 'drew':
+                game.enemyHandCount = data.count;
+                game.enemyVisible[data.count - 1] = data.card || null;
+                game.enemyTotalBet = data.totalBet;
+                render();
+                break;
+
+            case 'stand':
+                game.enemyStand = true;
+                render();
+                checkBothDone();
+                break;
+
+            case 'reveal':
+                game.enemyHand = data.hand;
+                game.enemyRevealed = true;
+                game.enemyBust = handValue(data.hand) > 21;
+                checkBothDone();
+                render();
+                break;
+
+            case 'next_round_ready':
+                game.enemyNextReady = true;
+                checkBothNextReady();
+                break;
+
+            default:
+                console.log('未知消息', data);
+        }
+    }
+
+    /* ====================== 事件绑定 ====================== */
+    hostBtn.addEventListener('click', hostGame);
+    joinBtn.addEventListener('click', joinGame);
+    betConfirmBtn.addEventListener('click', confirmBet);
+    hitBtn.addEventListener('click', hit);
+    standBtn.addEventListener('click', stand);
+
+    copyRoomBtn.addEventListener('click', () => {
+        const code = roomCodeInput.value;
+        const done = () => {
+            connStatus.textContent = '已复制房间号！';
+            setTimeout(() => { connStatus.textContent = '等待对方加入...'; }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(done).catch(() => {
+                roomCodeInput.select();
+                document.execCommand('copy');
+                done();
+            });
+        } else {
+            roomCodeInput.select();
+            document.execCommand('copy');
+            done();
+        }
+    });
+
+    // 键盘快捷键：H / ↑ 要牌，S / ↓ 停牌
+    document.addEventListener('keydown', (e) => {
+        if (game.phase !== 'playing' || game.myStand) return;
+        if (e.key === 'h' || e.key === 'H' || e.key === 'ArrowUp') { e.preventDefault(); hit(); }
+        if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') { e.preventDefault(); stand(); }
+    });
+
+    render();
+})();
+</script>
+</body>
+</html>

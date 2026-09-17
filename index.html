@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>不可知游戏导航中心</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- 顶部背景区 -->
+  <div class="hero">
+    <div class="hero-inner">
+      <img class="logo" src="images/logo.png" alt="网站 Logo" />
+    </div>
+  </div>
+
+  <!-- 顶边栏 -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <button class="nav-item active" data-page="home">首页</button>
+      <button class="nav-item" data-page="multi">双屏游戏</button>
+      <button class="nav-item" data-page="single">单屏游戏</button>
+      <button class="nav-item" data-page="other">其他玩法</button>
+      <button class="nav-item" data-page="about">关于本站</button>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- 首页 -->
+    <section id="page-home" class="page active">
+
+      <h2 class="section-title">更新动态</h2>
+      <div id="news-list" class="news-list"></div>
+
+      <h2 class="section-title">游戏一览</h2>
+      <div id="home-games" class="grid"></div>
+
+      <h2 class="section-title">其他玩法</h2>
+      <div id="home-others" class="grid"></div>
+
+      <h2 class="section-title">关于我</h2>
+      <div class="about-me">
+        <p>你好，这里是不可知，如果我的网站让你喜欢，欢迎为我提供支持。</p>
+        <p>X 账号指路：
+          <a href="https://x.com/bukezhi1167870" target="_blank" rel="noopener noreferrer">
+            https://x.com/bukezhi1167870
+          </a>
+        </p>
+      </div>
+
+    </section>
+
+    <!-- 双屏游戏 -->
+    <section id="page-multi" class="page">
+      <h2 class="section-title">双屏游戏</h2>
+      <div id="multi-games" class="grid"></div>
+    </section>
+
+    <!-- 单屏游戏 -->
+    <section id="page-single" class="page">
+      <h2 class="section-title">单屏游戏</h2>
+      <div id="single-games" class="grid"></div>
+    </section>
+
+    <!-- 其他玩法 -->
+    <section id="page-other" class="page">
+      <h2 class="section-title">其他玩法</h2>
+      <div id="other-games" class="grid"></div>
+    </section>
+
+    <!-- 关于本站 -->
+    <section id="page-about" class="page">
+      <h2 class="section-title">关于本站</h2>
+      <div class="about-site">
+        <div id="about-text" class="about-text"></div>
+        <div class="qr-box">
+          <img src="images/qr.png" alt="赞赏码" />
+          <p>如果喜欢，欢迎支持</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>© 不可知游戏导航中心</p>
+  </footer>
+
+  <script src="data/news.js"></script>
+  <script src="data/games.js"></script>
+  <script src="data/site.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

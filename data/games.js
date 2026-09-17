@@ -1,0 +1,26 @@
+window.games = [
+  {
+    name: "飞机大战·小圈SP版",
+    url: "games/bomb-plane/index.html",
+    image: "images/game-S01.png",
+    tags: ["赌注", "双人", "对战", "化债"],
+    desc: "赌上小圈惩罚内容，和主/贝进行飞机大战！",
+    category: "multi"
+  },
+  {
+    name: "点格棋·小圈SP版",
+    url: "games/Dots and Boxes/index.html",
+    image: "images/game-S02.png",
+    tags: ["赌注", "双人", "对战", "化债"],
+    desc: "赌上小圈惩罚内容，体验斗智斗勇的点格棋。",
+    category: "multi"
+  },
+  {
+    name: "21点·小圈版",
+    url: "games/Blackjack/index.html",
+    image: "images/game-S03.png",
+    tags: ["赌注", "双人", "对战", "主贝", "双"],
+    desc: "主/贝/双均可选的惩罚赌注版本，21点。",
+    category: "multi"
+  },
+];
