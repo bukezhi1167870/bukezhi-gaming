@@ -969,13 +969,15 @@ function checkCompletedCards() {
     if (S.sanity < S.maxSanity) S.sanity += 1;
     pushLog(`✦ 契约 ${String(c.id).padStart(2,'0')} 被填满并翻面。理智 +1。`, 'good');
 
+    /* 审视骰：简单模式 5~6 额外 +1；困难模式 6 额外 +1 */
     const d = rnd6();
-    if (d === 6) {
+    const bonusThreshold = S.mode === 'easy' ? 5 : 6;
+    if (d >= bonusThreshold) {
       if (S.sanity < S.maxSanity) {
         S.sanity += 1;
-        pushLog('审视骰：<b>6</b> —— 你看得更清楚了。理智 +1。', 'good');
+        pushLog(`审视骰：<b>${d}</b> —— 你看得更清楚了。理智 +1。`, 'good');
       } else {
-        pushLog('审视骰：<b>6</b> —— 理智已达上限。');
+        pushLog(`审视骰：<b>${d}</b> —— 理智已达上限。`);
       }
     } else {
       pushLog(`审视骰：${d} —— 继续前行。`);
@@ -992,6 +994,7 @@ function checkCompletedCards() {
 
 /* ---------------------------------------------------------
    回合推进 / 阶段转换
+   阶段结束：不清骰子，不扣耐力，只扣 1 理智
    --------------------------------------------------------- */
 function endTurn(cardCompleted) {
   if (cardCompleted) {
@@ -1003,16 +1006,8 @@ function endTurn(cardCompleted) {
     if (S.turn > S.maxTurns) {
       S.turn = 1;
       S.usedActions.clear();
-
-      let cleared = false;
-      for (const c of S.cards)
-        for (const s of c.slots)
-          if (s.die !== null) { s.die = null; cleared = true; }
-
       S.sanity = Math.max(0, S.sanity - 1);
-      S.hp -= 1;
-
-      pushLog('本阶段 5 回合已用尽，未完成契约卡上的骰子被清空，理智 -1，耐力 -1。进入下一阶段。', 'warn');
+      pushLog('本阶段 5 回合已用尽，理智 -1。未完成的契约卡与风险区保持不变，进入下一阶段。', 'warn');
     }
   }
 
@@ -1097,7 +1092,7 @@ function showStatsModal() {
   ov.innerHTML = `
     <div class="endcard stats-card">
       <h2>我的记录</h2>
-      <p class="stats-note">数据为本地浏览器数据，清空站点记录会丢失。</p>
+      <p class="stats-note">数据只保留在本地浏览器，清空站点记录后消失。</p>
       <div class="stats-grid">
         ${statsBlock('简单模式', stats.easy)}
         ${statsBlock('困难模式', stats.hard)}
@@ -1126,11 +1121,11 @@ function showStart() {
       <div class="modes">
         <button data-mode="easy">
           <b>简单模式</b>
-          <span>10 理智（上限 10） · 10 耐力 · 场上同时存在 2 张契约卡</span>
+          <span>10 理智（上限 10） · 10 耐力 · 场上同时存在 2 张契约卡 · 审视骰 5~6 额外 +1 理智</span>
         </button>
         <button data-mode="hard">
           <b>困难模式</b>
-          <span>6 理智（上限 6） · 5 耐力 · 场上只存在 1 张契约卡</span>
+          <span>6 理智（上限 6） · 5 耐力 · 场上只存在 1 张契约卡 · 审视骰 6 额外 +1 理智</span>
         </button>
       </div>
       <details>
@@ -1143,8 +1138,8 @@ function showStart() {
           <li><b>结算</b>：点击结算后，逐颗选择骰子放入哪张契约卡或风险区。</li>
           <li><b>指令</b>：填入契约卡的骰子会触发主人指令；若只填入 6 点，显示“无指令（休息回合）”。</li>
           <li><b>危险</b>：风险区合计 &gt; 7 时触发，未完成契约卡上的骰子清除、风险区清空、耐力 -1。已填满的卡不受影响。</li>
-          <li><b>翻面</b>：填满一张契约卡 → 翻面 → 理智 +1 → 投审视骰（如果为6，额外 +1 理智）→ 进入下一阶段。</li>
-          <li><b>阶段</b>：每阶段 5 回合。用尽则未完成卡上的骰子被清空、理智 -1、耐力 -1，进入下一阶段。</li>
+          <li><b>翻面</b>：填满一张契约卡 → 翻面 → 理智 +1 → 投审视骰（简单模式 5~6 额外 +1 理智；困难模式 6 额外 +1 理智）→ 进入下一阶段。</li>
+          <li><b>阶段</b>：每阶段 5 回合。用尽则理智 -1，未完成契约卡上的骰子与风险区保持不变，进入下一阶段。</li>
           <li><b>结束</b>：填满 6 张契约卡（胜利）或耐力归零（失败）。</li>
         </ul>
       </details>
