@@ -717,9 +717,7 @@
         myWins: 0,
         enemyWins: 0,
 
-        // 连接提示（游戏进行中短时显示在 statusText）
         notice: '',
-        // bye 去重
         _byeHandled: false
     };
 
@@ -847,7 +845,7 @@
             enemyScoreEl.className = 'hand-score';
         }
 
-        /* --- 状态文字（notice 优先） --- */
+        /* --- 状态文字 --- */
         if (game.notice) {
             statusText.textContent = game.notice;
         } else if (game.phase === 'setup') {
@@ -869,7 +867,6 @@
         roundInfo.textContent =
             `第 ${game.round} 局　|　${game.myName} ${game.myWins} : ${game.enemyWins} ${game.enemyName || '对方'}`;
 
-        // 下注信息栏
         if (game.phase === 'betting' || game.phase === 'bet_reveal' || game.phase === 'playing' || game.phase === 'result') {
             const myId = game.myIdentity ? `[${game.myIdentity}]` : '';
             const enId = game.enemyIdentity ? `[${game.enemyIdentity}]` : '';
@@ -884,7 +881,6 @@
             betInfo.innerHTML = '';
         }
 
-        /* --- 按钮 --- */
         const canAct = (game.phase === 'playing' && !game.myStand);
         hitBtn.disabled = !canAct;
         standBtn.disabled = !canAct;
@@ -895,10 +891,7 @@
         enemyNameLabel.textContent = game.enemyName || '对方';
     }
 
-    /* ====================== 连接状态提示 ======================
-       面板可见时写入 connStatus；
-       游戏进行中（面板隐藏）时写入 game.notice，由 render() 显示在 statusText。
-    ==================================================================== */
+    /* ====================== 连接状态提示 ====================== */
     function setConnStatus(text, revertAfter) {
         connStatus.textContent = text;
 
@@ -936,23 +929,18 @@
     }
 
     function renderSetup() {
-        // 身份按钮选中状态
         identityOptions.querySelectorAll('.identity-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.identity === game.myIdentity);
         });
-        // 惩罚池显示
         if (game.myIdentity) {
             punishPoolDisplay.textContent = '你输了只能承受：' + IDENTITY_POOL[game.myIdentity].join(' / ');
         } else {
             punishPoolDisplay.textContent = '请选择身份';
         }
-        // 汇率确认按钮
         confirmRateBtn.disabled = game.rateConfirmed;
         confirmRateBtn.textContent = game.rateConfirmed ? '已确认汇率' : '我已知晓汇率';
-        // 准备按钮
         setupReadyBtn.disabled = !(game.myIdentity && game.rateConfirmed) || game.mySetupReady;
         setupReadyBtn.textContent = game.mySetupReady ? '已准备' : '准备';
-        // 状态
         if (game.mySetupReady && game.enemySetupReady) {
             setupStatus.textContent = '双方已准备，即将开始...';
         } else if (game.mySetupReady) {
@@ -987,7 +975,6 @@
 
     function checkBothSetupReady() {
         if (game.mySetupReady && game.enemySetupReady) {
-            // 由「主机」负责发起，避免两边同时 startBetting 造成双发
             if (game.isHost) {
                 send({ type: 'start_betting' });
                 startBetting();
@@ -999,7 +986,6 @@
     function startBetting() {
         game.phase = 'betting';
         setupOverlay.classList.add('hidden');
-        // 重置本局数据
         game.myBetType = null;
         game.enemyBetType = null;
         game.myInitialBet = 0;
@@ -1024,7 +1010,6 @@
     }
 
     function showBetOverlay() {
-        // 动态生成可选惩罚项目
         betOptionsEl.innerHTML = '';
         const pool = IDENTITY_POOL[game.myIdentity] || [];
         pool.forEach(type => {
@@ -1126,7 +1111,6 @@
     function hit() {
         if (game.phase !== 'playing' || game.myStand) return;
 
-        // 要牌加注：增加初始下注额
         game.myTotalBet += game.myInitialBet;
 
         game.myHand.push(drawCard());
@@ -1189,7 +1173,6 @@
         else if (myV < enV) winner = 'enemy';
         else winner = 'draw';
 
-        // 黑杰克倍数
         let mult = 1;
         if (winner === 'me' && isBlackjack(game.myHand)) mult = 2;
         if (winner === 'enemy' && isBlackjack(game.enemyHand)) mult = 2;
@@ -1203,7 +1186,6 @@
         if (winner === 'draw') {
             rewardHtml = '<p style="margin-top:14px;">平局 / 双方爆牌 —— 无惩罚 🤝</p>';
         } else {
-            // 败者
             const loserName = winner === 'me' ? (game.enemyName || '对方') : game.myName;
             const loserType = winner === 'me' ? game.enemyBetType : game.myBetType;
             const rate = RATE[loserType] || 0;
@@ -1230,7 +1212,6 @@
         infoBtn.disabled = false;
         infoOverlay.classList.remove('hidden');
 
-        // 双方都要点下一局
         game.myNextReady = false;
         game.enemyNextReady = false;
         infoBtn.onclick = () => {
@@ -1253,7 +1234,6 @@
     }
 
     /* ====================== 联机（公共 MQTT 中继） ====================== */
-    // 国内可直连的公共 MQTT 服务器（WebSocket over TLS 端口）
     const MQTT_BROKERS = [
         'wss://broker-cn.emqx.io:8084/mqtt',   // EMQX 中国节点（首选）
         'wss://broker.emqx.io:8084/mqtt'       // EMQX 国际节点（备用）
@@ -1268,12 +1248,12 @@
     let everConnected = false;
     let gotEnemy     = false;
 
-    // ---- 消息去重（防 QoS 1 重传） ----
+    // ---- 消息去重 ----
     let sendSeq = 0;
     const seenMids = new Set();
     const SEEN_MAX = 300;
 
-    // ---- 连接看门狗（问题 3：两个 broker 都失败时给用户反馈） ----
+    // ---- 连接看门狗 ----
     let connectWatchdog = null;
 
     function randomDigits(n) {
@@ -1283,7 +1263,7 @@
     }
 
     function generateRoomCode() { return randomDigits(8); }
-    function formatRoomCode(code) { return code; }   // 不再加连字符
+    function formatRoomCode(code) { return code; }
 
     /* ---------- 建立中继连接 ---------- */
     function connectRelay() {
@@ -1296,8 +1276,8 @@
             clean: true,
             keepalive: 30,
             connectTimeout: 8000,
-            reconnectPeriod: 2000,          // 掉线自动重连
-            will: {                          // 异常掉线时广播 bye
+            reconnectPeriod: 2000,
+            will: {
                 topic: roomTopic,
                 payload: JSON.stringify({ type: 'bye', _from: myPeerId }),
                 qos: 1,
@@ -1306,7 +1286,6 @@
         });
         mqttClient = client;
 
-        // 看门狗：15 秒内一次都没连上，就回大厅让用户重试
         if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
         connectWatchdog = setTimeout(() => {
             if (!everConnected && mqttClient === client) {
@@ -1315,7 +1294,7 @@
         }, 15000);
 
         client.on('connect', () => {
-            if (mqttClient !== client) return;   // 已被替换，忽略
+            if (mqttClient !== client) return;
             everConnected = true;
             if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
 
@@ -1325,7 +1304,7 @@
                 if (!gotEnemy) {
                     setConnStatus(game.isHost ? '等待对方加入...' : '已连接，等待主机...');
                 }
-                startHello();                // 反复打招呼，防止对方还没上线时丢消息
+                startHello();
             });
         });
 
@@ -1333,14 +1312,13 @@
             if (mqttClient !== client) return;
             let data;
             try { data = JSON.parse(payload.toString()); } catch (e) { return; }
-            if (!data || data._from === myPeerId) return;   // 过滤自己发的
+            if (!data || data._from === myPeerId) return;
             handleData(data);
         });
 
         client.on('error', (err) => {
-            if (mqttClient !== client) return;   // 旧 client 的 error，忽略
+            if (mqttClient !== client) return;
             console.error('MQTT error:', err);
-            // 首选 broker 连不上时自动切备用（先销毁当前 client 再切）
             if (!everConnected && brokerIndex < MQTT_BROKERS.length - 1) {
                 brokerIndex++;
                 try { client.end(true); } catch (e) {}
@@ -1350,7 +1328,7 @@
         });
     }
 
-    /* ---------- 反复打招呼直到收到对方昵称 ---------- */
+    /* ---------- 打招呼：反复发送直到收到对方回应 ---------- */
     function startHello() {
         send({ type: 'nickname', name: game.myName });
         if (helloTimer) return;
@@ -1416,7 +1394,7 @@
         connectRelay();
     }
 
-    /* ---------- 发送（带 _mid，供接收端去重） ---------- */
+    /* ---------- 发送 ---------- */
     function send(data) {
         if (!mqttClient || !mqttClient.connected) return;
         data._from = myPeerId;
@@ -1437,15 +1415,12 @@
         if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
         roomTopic = '';
 
-        // 清空消息去重缓存
         seenMids.clear();
 
-        // 关闭所有遮罩
         setupOverlay.classList.add('hidden');
         betOverlay.classList.add('hidden');
         infoOverlay.classList.add('hidden');
 
-        // 重置对局状态
         game.phase = 'idle';
         game.connected = false;
         game.enemyName = '';
@@ -1474,7 +1449,6 @@
         game.notice = '';
         game._byeHandled = false;
 
-        // 显示连接面板
         gameContainer.classList.add('hidden');
         connectionPanel.classList.remove('hidden');
         hostBtn.disabled = false;
@@ -1493,12 +1467,11 @@
     function handleData(data) {
         if (!data || !data.type) return;
 
-        // ① 消息去重（问题 1：防止 QoS 1 重传的副本被处理两次）
+        // ① 消息去重（防止 QoS 1 重传）
         if (data._mid) {
             if (seenMids.has(data._mid)) return;
             seenMids.add(data._mid);
             if (seenMids.size > SEEN_MAX) {
-                // 简单清理：删掉最早插入的 100 条
                 const it = seenMids.values();
                 for (let i = 0; i < 100; i++) {
                     const v = it.next();
@@ -1508,7 +1481,7 @@
             }
         }
 
-        // ② 轮次校验（问题 1：丢弃迟到的旧局消息，避免扰乱下一局）
+        // ② 轮次校验（丢弃迟到的旧局消息）
         if (typeof data.round === 'number' && data.round !== game.round) {
             console.log('丢弃过期消息', data.type, 'round=' + data.round, '当前=' + game.round);
             return;
@@ -1517,13 +1490,19 @@
         switch (data.type) {
             case 'nickname':
                 if (!data.name) return;
-                // 问题 2：已完成握手后，忽略重复的 hello，避免反复刷新 statusText
-                if (gotEnemy && game.phase !== 'idle') return;
+                // ★ 已握手，忽略重复 hello（避免双方互相回应陷入死循环）
+                if (gotEnemy) return;
+
                 game.enemyName = data.name;
                 gotEnemy = true;
                 stopHello();
                 updateLabels();
                 setConnStatus('已连接！');
+
+                // ★ 关键修复：立即回发一条 hello，确保对方也能收到我们的存在
+                //    这样无论谁先连上 broker，双向握手都能在 1 次往返内完成
+                send({ type: 'nickname', name: game.myName });
+
                 if (game.myName && game.enemyName && game.phase === 'idle') {
                     showSetup();
                 }
@@ -1582,7 +1561,6 @@
                 break;
 
             case 'bye':
-                // 去重：避免重复弹窗，返回大厅
                 if (game.enemyName && !game._byeHandled) {
                     game._byeHandled = true;
                     alert('对方已断开连接，将返回房间面板');
@@ -1618,14 +1596,12 @@
         }
     });
 
-    // 键盘快捷键：H / ↑ 要牌，S / ↓ 停牌
     document.addEventListener('keydown', (e) => {
         if (game.phase !== 'playing' || game.myStand) return;
         if (e.key === 'h' || e.key === 'H' || e.key === 'ArrowUp') { e.preventDefault(); hit(); }
         if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') { e.preventDefault(); stand(); }
     });
 
-    // 关闭页面前主动通知对方
     window.addEventListener('beforeunload', () => {
         if (mqttClient && mqttClient.connected && roomTopic) {
             try {
