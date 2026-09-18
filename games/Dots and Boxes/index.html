@@ -4,14 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>点格棋 · 小圈SP版</title>
-<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+<!-- MQTT 客户端（国内公共中继方案，不再依赖 PeerJS / WebRTC） -->
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+  if (typeof mqtt === 'undefined') {
+    document.write('<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"><\/script>');
+  }
+</script>
+
 <style>
     :root {
-        /* 棋盘轨道尺寸 */
-        --du: 14px;   /* 点轨道 */
-        --lu: 36px;   /* 线 / 格轨道 */
+        --du: 14px;
+        --lu: 36px;
 
-        /* ===== 马卡龙色板 ===== */
         --m-mint:   #8fe3c0;
         --m-pink:   #ffa3b8;
         --m-yellow: #ffd97d;
@@ -20,16 +26,13 @@
         --m-peach:  #ffc9a8;
         --m-cream:  #fffbf5;
 
-        /* 像素墨线 */
         --ink:      #4a3b5c;
         --ink-2:    #7a6a8f;
         --ink-3:    #b9a8d0;
 
-        /* 面板 */
         --panel:      #fffbf5;
         --panel-deep: #f0e2ff;
 
-        /* 我方 / 敌方 */
         --c-self: #57c99a;
         --c-foe:  #ff8fa8;
 
@@ -59,9 +62,6 @@
         -webkit-tap-highlight-color: transparent;
     }
 
-    /* ============================================================
-       通用面板
-       ============================================================ */
     .game-container,
     .connection-panel,
     .rule-section {
@@ -71,7 +71,6 @@
         box-shadow: 8px 8px 0 0 var(--ink);
     }
 
-    /* 顶部彩虹像素条（纯背景绘制，不影响布局） */
     .game-container,
     .connection-panel {
         background-image: repeating-linear-gradient(90deg,
@@ -93,9 +92,6 @@
         margin-bottom: 20px;
     }
 
-    /* ============================================================
-       头部
-       ============================================================ */
     .header { text-align: center; margin-bottom: 16px; }
 
     .header h1 {
@@ -113,9 +109,6 @@
         min-height: 24px;
     }
 
-    /* ============================================================
-       记分板
-       ============================================================ */
     .scoreboard {
         display: flex;
         align-items: center;
@@ -159,7 +152,6 @@
     .player-card.p1 .pscore { color: #2fa87a; }
     .player-card.p2 .pscore { color: #e85f7f; }
 
-    /* 当前回合：黄框闪烁 */
     .player-card.active {
         box-shadow: 4px 4px 0 var(--ink), inset 0 0 0 3px var(--m-yellow);
         animation: px-blink 1s steps(2, end) infinite;
@@ -176,9 +168,6 @@
         font-size: .9rem;
     }
 
-    /* ============================================================
-       棋盘
-       ============================================================ */
     .board-wrap {
         display: inline-block;
         padding: 12px;
@@ -195,7 +184,6 @@
 
     .gcell { position: relative; }
 
-    /* --- 点：像素方块 --- */
     .dot {
         display: flex;
         align-items: center;
@@ -209,7 +197,6 @@
         box-shadow: 0 0 0 1px rgba(74, 59, 92, .35);
     }
 
-    /* --- 线 --- */
     .hline, .vline { position: relative; }
 
     .hline::after,
@@ -230,7 +217,6 @@
         transform: translateX(-50%);
     }
 
-    /* 可交互时的高亮 */
     .board.interactive .hline:not(.drawn),
     .board.interactive .vline:not(.drawn) { cursor: pointer; }
 
@@ -240,7 +226,6 @@
         box-shadow: 0 0 0 2px var(--ink);
     }
 
-    /* 已画的线 */
     .hline.drawn.own::after,
     .vline.drawn.own::after {
         background: var(--c-self);
@@ -252,7 +237,6 @@
         box-shadow: 0 0 0 2px var(--ink);
     }
 
-    /* --- 方格 --- */
     .box { border-radius: 0; }
 
     .box.own {
@@ -264,9 +248,6 @@
         box-shadow: inset 0 0 0 2px rgba(74, 59, 92, .22);
     }
 
-    /* ============================================================
-       控制区
-       ============================================================ */
     .controls {
         margin-top: 18px;
         display: flex;
@@ -276,9 +257,6 @@
         align-items: center;
     }
 
-    /* ============================================================
-       按钮 —— 像素立体感
-       ============================================================ */
     .action-btn {
         padding: 10px 20px;
         font-family: inherit;
@@ -315,9 +293,6 @@
         box-shadow: 3px 3px 0 var(--ink);
     }
 
-    /* ============================================================
-       输入框
-       ============================================================ */
     .connection-panel input,
     #betAmount {
         font-family: inherit;
@@ -336,9 +311,6 @@
         box-shadow: 3px 3px 0 var(--m-pink);
     }
 
-    /* ============================================================
-       连接面板
-       ============================================================ */
     .connection-panel {
         padding: 34px 30px 30px;
         max-width: 520px;
@@ -400,9 +372,6 @@
 
     .nickname-input { width: 120px !important; }
 
-    /* ============================================================
-       遮罩
-       ============================================================ */
     .overlay {
         position: fixed;
         top: 0; left: 0;
@@ -439,7 +408,6 @@
     }
     #infoContent strong { color: var(--m-yellow); }
 
-    /* --- 下注选项 --- */
     .bet-options {
         display: flex;
         gap: 10px;
@@ -479,9 +447,6 @@
         margin: 10px 0;
     }
 
-    /* ============================================================
-       规则区
-       ============================================================ */
     .rule-section {
         padding: 22px 24px;
         max-width: 900px;
@@ -524,14 +489,8 @@
     }
     .rule-section a:hover { color: #ff7fa8; }
 
-    /* ============================================================
-       工具
-       ============================================================ */
     .hidden { display: none !important; }
 
-    /* ============================================================
-       响应式
-       ============================================================ */
     @media (max-width: 700px) {
         :root { --du: 11px; --lu: 28px; }
         .game-container { padding: 16px; padding-top: 24px; }
@@ -563,7 +522,7 @@
     <div>
         <input type="text" id="nicknameInput" class="nickname-input" placeholder="昵称" maxlength="6" value="玩家1">
         <button class="action-btn primary" id="hostBtn">创建房间</button>
-        <input type="text" id="roomInput" placeholder="输入16位房间号">
+        <input type="text" id="roomInput" placeholder="输入8位房间号">
         <button class="action-btn secondary" id="joinBtn">加入房间</button>
     </div>
     <div class="room-display hidden" id="roomDisplayArea">
@@ -647,17 +606,16 @@
 /* ============================================================
    常量与状态
    ============================================================ */
-const N = 7;                              // 7×7 个格子
-const TOTAL_BOXES = N * N;                // 49
-const TOTAL_LINES = 2 * N * (N + 1);      // 112
+const N = 7;
+const TOTAL_BOXES = N * N;
+const TOTAL_LINES = 2 * N * (N + 1);
 
 const S = {
     phase: 'idle',        // idle | betting | reveal | play | over
-    myId: 0,              // 1 = 房主, 2 = 加入者
-    turn: 0,              // 当前行动玩家 1/2
+    myId: 0,
+    turn: 0,
     myName: '',
     enemyName: '',
-    conn: null,
     isHost: false,
     started: false,
     roomCode: null,
@@ -666,10 +624,11 @@ const S = {
     lines: new Set(),
     lineOwner: {},
     boxOwner: [],
-    scores: [0, 0, 0]
+    scores: [0, 0, 0],
+    notice: '',
+    _byeHandled: false
 };
 
-let peer = null;
 let lineEls = {};
 let boxEls = {};
 let infoCallback = null;
@@ -683,14 +642,13 @@ const esc = s => String(s).replace(/[&<>"']/g,
 const other = id => (id === 1 ? 2 : 1);
 const lineKey = (o, r, c) => o + ':' + r + ':' + c;
 
-function randomRoomId() {
+function randomDigits(n) {
     let s = '';
-    for (let i = 0; i < 16; i++) s += Math.floor(Math.random() * 10);
+    for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 10);
     return s;
 }
-function formatRoom(id) {
-    return id.replace(/(.{4})/g, '$1-').replace(/-$/, '');
-}
+function generateRoomCode() { return randomDigits(8); }
+function formatRoomCode(code) { return code; }
 
 /* ============================================================
    棋盘构建
@@ -716,10 +674,8 @@ function buildBoard() {
             el.className = 'gcell';
 
             if (gr % 2 === 0 && gc % 2 === 0) {
-                /* 点 */
                 el.classList.add('dot');
             } else if (gr % 2 === 0 && gc % 2 === 1) {
-                /* 横线 */
                 const r = gr / 2, c = (gc - 1) / 2;
                 el.classList.add('hline');
                 el.dataset.orient = 'h';
@@ -727,7 +683,6 @@ function buildBoard() {
                 el.dataset.c = c;
                 lineEls['h:' + r + ':' + c] = el;
             } else if (gr % 2 === 1 && gc % 2 === 0) {
-                /* 竖线 */
                 const r = (gr - 1) / 2, c = gc / 2;
                 el.classList.add('vline');
                 el.dataset.orient = 'v';
@@ -735,7 +690,6 @@ function buildBoard() {
                 el.dataset.c = c;
                 lineEls['v:' + r + ':' + c] = el;
             } else {
-                /* 方格 */
                 const r = (gr - 1) / 2, c = (gc - 1) / 2;
                 el.classList.add('box');
                 el.dataset.r = r;
@@ -798,7 +752,6 @@ function doMove(o, r, c, by, isLocal) {
     const gained = applyMove(o, r, c, by);
     if (!gained) return;
 
-    /* 占格则继续，否则换手 */
     S.turn = (gained.length > 0) ? by : other(by);
 
     if (isLocal) send({ type: 'move', o: o, r: r, c: c, by: by });
@@ -869,7 +822,6 @@ function showResult(winnerId) {
    渲染
    ============================================================ */
 function render() {
-    /* 线 */
     for (const k in lineEls) {
         const el = lineEls[k];
         const drawn = S.lines.has(k);
@@ -883,7 +835,6 @@ function render() {
         }
     }
 
-    /* 方格 */
     for (const k in boxEls) {
         const el = boxEls[k];
         const parts = k.split(':');
@@ -892,27 +843,25 @@ function render() {
         el.classList.toggle('foe', o !== 0 && o !== S.myId);
     }
 
-    /* 分数 */
     const myScore  = S.scores[S.myId] || 0;
     const foeScore = S.scores[S.myId === 1 ? 2 : 1] || 0;
     $('p1Score').textContent = myScore;
     $('p2Score').textContent = foeScore;
 
-    /* 名字 */
     $('p1Name').textContent = S.myName || '我';
     $('p2Name').textContent = S.enemyName || '对方';
 
-    /* 当前回合高亮 */
     const playing = (S.phase === 'play');
     $('p1Card').classList.toggle('active', playing && S.turn === S.myId);
     $('p2Card').classList.toggle('active', playing && S.turn !== S.myId);
 
-    /* 棋盘可交互性 */
     $('board').classList.toggle('interactive', playing && S.turn === S.myId);
 
-    /* 状态文本 */
+    /* 状态文本：notice 优先 */
     const st = $('statusText');
-    if (S.phase === 'idle') {
+    if (S.notice) {
+        st.textContent = S.notice;
+    } else if (S.phase === 'idle') {
         st.textContent = '等待连接...';
     } else if (S.phase === 'betting') {
         st.textContent = '等待双方下注...';
@@ -962,30 +911,176 @@ $('betOptions').addEventListener('click', function (e) {
 });
 
 /* ============================================================
-   联机通信
+   联机通信（公共 MQTT 中继）
    ============================================================ */
-function send(msg) {
-    if (S.conn && S.conn.open) {
-        S.conn.send(msg);
+const MQTT_BROKERS = [
+    'wss://broker-cn.emqx.io:8084/mqtt',
+    'wss://broker.emqx.io:8084/mqtt'
+];
+const TOPIC_PREFIX = 'bdsm_dots/v1/';
+
+let mqttClient    = null;
+let myPeerId      = '';
+let roomTopic     = '';
+let brokerIndex   = 0;
+let helloTimer    = null;
+let everConnected = false;
+let gotEnemy      = false;
+let connectWatchdog = null;
+
+let sendSeq = 0;
+const seenMids = new Set();
+const SEEN_MAX = 300;
+
+function setConnStatus(text, revertAfter) {
+    $('connStatus').textContent = text;
+
+    const inGame = !$('gameContainer').classList.contains('hidden');
+    if (inGame) {
+        S.notice = text;
+        render();
+        if (revertAfter) {
+            setTimeout(() => {
+                if (S.notice === text) {
+                    S.notice = '';
+                    render();
+                }
+            }, revertAfter);
+        }
+    } else if (revertAfter) {
+        setTimeout(() => {
+            if (!gotEnemy) {
+                $('connStatus').textContent = S.isHost ? '等待对方加入...' : '已连接，等待主机...';
+            } else {
+                $('connStatus').textContent = '已连接！';
+            }
+        }, revertAfter);
     }
+}
+
+function connectRelay() {
+    if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
+    const url = MQTT_BROKERS[brokerIndex];
+    setConnStatus('正在连接中继服务器...');
+
+    const client = mqtt.connect(url, {
+        clientId: 'dots_' + myPeerId + '_' + Math.random().toString(16).slice(2, 8),
+        clean: true,
+        keepalive: 30,
+        connectTimeout: 8000,
+        reconnectPeriod: 2000,
+        will: {
+            topic: roomTopic,
+            payload: JSON.stringify({ type: 'bye', _from: myPeerId }),
+            qos: 1,
+            retain: false
+        }
+    });
+    mqttClient = client;
+
+    if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
+    connectWatchdog = setTimeout(() => {
+        if (!everConnected && mqttClient === client) {
+            resetToLobby('无法连接中继服务器，请检查网络后重试');
+        }
+    }, 15000);
+
+    client.on('connect', () => {
+        if (mqttClient !== client) return;
+        everConnected = true;
+        if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
+
+        client.subscribe(roomTopic, { qos: 0 }, (err) => {
+            if (err) { console.error('subscribe fail', err); return; }
+            if (!gotEnemy) {
+                setConnStatus(S.isHost ? '等待对方加入...' : '已连接，等待主机...');
+            }
+            startHello();
+        });
+    });
+
+    client.on('message', (topic, payload) => {
+        if (mqttClient !== client) return;
+        let data;
+        try { data = JSON.parse(payload.toString()); } catch (e) { return; }
+        if (!data || data._from === myPeerId) return;
+        onData(data);
+    });
+
+    client.on('error', (err) => {
+        if (mqttClient !== client) return;
+        console.error('MQTT error:', err);
+        if (!everConnected && brokerIndex < MQTT_BROKERS.length - 1) {
+            brokerIndex++;
+            try { client.end(true); } catch (e) {}
+            if (mqttClient === client) mqttClient = null;
+            setTimeout(connectRelay, 500);
+        }
+    });
+}
+
+function startHello() {
+    send({ type: 'nickname', name: S.myName });
+    if (helloTimer) return;
+    helloTimer = setInterval(() => {
+        if (gotEnemy) { stopHello(); return; }
+        if (!mqttClient || !mqttClient.connected) return;
+        send({ type: 'nickname', name: S.myName });
+    }, 1500);
+}
+function stopHello() {
+    if (helloTimer) { clearInterval(helloTimer); helloTimer = null; }
+}
+
+function send(msg) {
+    if (!mqttClient || !mqttClient.connected) return;
+    msg._from = myPeerId;
+    msg._mid = myPeerId + '#' + (++sendSeq);
+    try {
+        mqttClient.publish(roomTopic, JSON.stringify(msg), { qos: 1 });
+    } catch (e) { console.error(e); }
 }
 
 function onData(msg) {
     if (!msg || !msg.type) return;
 
+    /* ① 消息去重（防止 QoS 1 重传被处理两次） */
+    if (msg._mid) {
+        if (seenMids.has(msg._mid)) return;
+        seenMids.add(msg._mid);
+        if (seenMids.size > SEEN_MAX) {
+            const it = seenMids.values();
+            for (let i = 0; i < 100; i++) {
+                const v = it.next();
+                if (v.done) break;
+                seenMids.delete(v.value);
+            }
+        }
+    }
+
     switch (msg.type) {
         case 'nickname':
+            if (!msg.name) return;
+            if (gotEnemy) return;             // 已握手，忽略重复 hello
             S.enemyName = msg.name;
+            gotEnemy = true;
+            stopHello();
+            enterGame();
+            setConnStatus('已连接！', 1500);
             render();
-            if (S.isHost && !S.started) {
-                S.started = true;
-                send({ type: 'start_game' });
-                startBetting();
+            if (S.isHost) {
+                if (!S.started) {
+                    S.started = true;
+                    send({ type: 'start_game' });
+                    startBetting();
+                }
             }
             break;
 
         case 'start_game':
+            if (S.started) return;            // 防止重传导致重复初始化
             S.started = true;
+            enterGame();
             startBetting();
             break;
 
@@ -1003,92 +1098,128 @@ function onData(msg) {
             doRestart(true);
             break;
 
+        case 'bye':
+            if (S.enemyName && !S._byeHandled) {
+                S._byeHandled = true;
+                alert('对方已断开连接，将返回房间面板');
+                resetToLobby('对方已断开连接，请重新创建或加入房间');
+            }
+            break;
+
         default:
             console.log('未知消息', msg);
     }
-}
-
-function onClose() {
-    alert('连接已断开');
-    location.reload();
 }
 
 /* ============================================================
    连接流程
    ============================================================ */
 function enterGame() {
-    $('connectionPanel').classList.add('hidden');
-    $('gameContainer').classList.remove('hidden');
+    if (!$('connectionPanel').classList.contains('hidden')) {
+        $('connectionPanel').classList.add('hidden');
+    }
+    if ($('gameContainer').classList.contains('hidden')) {
+        $('gameContainer').classList.remove('hidden');
+    }
+    render();
+}
+
+function resetToLobby(message) {
+    stopHello();
+    gotEnemy = false;
+    everConnected = false;
+    brokerIndex = 0;
+
+    if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
+    if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
+    roomTopic = '';
+
+    seenMids.clear();
+
+    $('infoOverlay').classList.add('hidden');
+    $('betOverlay').classList.add('hidden');
+
+    S.phase = 'idle';
+    S.turn = 0;
+    S.enemyName = '';
+    S.started = false;
+    S.bet = null;
+    S.enemyBet = null;
+    S.notice = '';
+    S._byeHandled = false;
+    S.scores = [0, 0, 0];
+    S.lines = new Set();
+    S.lineOwner = {};
+    S.boxOwner = Array.from({ length: N }, () => new Array(N).fill(0));
+
+    $('gameContainer').classList.add('hidden');
+    $('connectionPanel').classList.remove('hidden');
+    $('hostBtn').disabled = false;
+    $('joinBtn').disabled = false;
+    $('roomInput').disabled = false;
+    $('nicknameInput').disabled = false;
+    $('roomInput').value = '';
+    $('roomDisplayArea').classList.add('hidden');
+    $('restartBtn').classList.add('hidden');
+
+    $('connStatus').textContent = message || '已断开连接，请重新创建或加入房间';
     render();
 }
 
 function hostGame() {
     const name = $('nicknameInput').value.trim() || '玩家1';
     S.myName = name;
+    S.isHost = true;
+    S.myId = 1;
+    S.started = false;
+    S._byeHandled = false;
+    myPeerId = 'h' + randomDigits(6);
+    everConnected = false;
+    brokerIndex = 0;
+    gotEnemy = false;
 
-    const id = randomRoomId();
-    S.roomCode = id;
-    peer = new Peer(id);
+    const code = generateRoomCode();
+    S.roomCode = code;
+    roomTopic = TOPIC_PREFIX + code;
 
-    peer.on('open', function () {
-        $('roomCode').value = formatRoom(id);
-        $('roomDisplayArea').classList.remove('hidden');
-        $('connStatus').textContent = '等待对方加入...';
-        $('hostBtn').disabled = true;
-        $('joinBtn').disabled = true;
-        $('roomInput').disabled = true;
-        $('nicknameInput').disabled = true;
-    });
+    $('roomCode').value = formatRoomCode(code);
+    $('roomDisplayArea').classList.remove('hidden');
+    $('connStatus').textContent = '正在连接中继服务器...';
+    $('hostBtn').disabled = true;
+    $('joinBtn').disabled = true;
+    $('roomInput').disabled = true;
+    $('nicknameInput').disabled = true;
 
-    peer.on('connection', function (conn) {
-        S.conn = conn;
-        S.isHost = true;
-        S.myId = 1;
-
-        conn.on('open', function () {
-            enterGame();
-            send({ type: 'nickname', name: S.myName });
-        });
-        conn.on('data', onData);
-        conn.on('close', onClose);
-    });
-
-    peer.on('error', function (err) {
-        console.error(err);
-        alert('PeerJS错误: ' + err.message);
-    });
+    connectRelay();
 }
 
 function joinGame() {
     const name = $('nicknameInput').value.trim() || '玩家2';
     S.myName = name;
+    S.isHost = false;
+    S.myId = 2;
+    S.started = false;
+    S._byeHandled = false;
+    myPeerId = 'g' + randomDigits(6);
+    everConnected = false;
+    brokerIndex = 0;
+    gotEnemy = false;
 
-    const code = $('roomInput').value.trim().replace(/-/g, '');
-    if (!/^\d{16}$/.test(code)) {
-        alert('请输入有效的16位数字房间号');
+    const input = $('roomInput').value.trim();
+    if (!/^\d{8}$/.test(input)) {
+        alert('请输入有效的8位数字房间号');
         return;
     }
 
-    peer = new Peer();
+    S.roomCode = input;
+    roomTopic = TOPIC_PREFIX + input;
 
-    peer.on('open', function () {
-        const conn = peer.connect(code, { reliable: true });
-        S.conn = conn;
-        S.isHost = false;
-        S.myId = 2;
+    $('hostBtn').disabled = true;
+    $('joinBtn').disabled = true;
+    $('roomInput').disabled = true;
+    $('nicknameInput').disabled = true;
 
-        conn.on('open', function () {
-            enterGame();
-            send({ type: 'nickname', name: S.myName });
-        });
-        conn.on('data', onData);
-        conn.on('close', onClose);
-    });
-
-    peer.on('error', function (err) {
-        console.error(err);
-        alert('PeerJS错误: ' + err.message);
-    });
+    connectRelay();
 }
 
 /* ============================================================
@@ -1145,7 +1276,7 @@ function revealBets() {
 function startPlay() {
     resetBoardState();
     S.phase = 'play';
-    S.turn = 1;               // 房主先手
+    S.turn = 1;
     $('restartBtn').classList.add('hidden');
     render();
 }
@@ -1175,23 +1306,20 @@ $('restartBtn').addEventListener('click', function () { doRestart(false); });
 
 $('copyRoomBtn').addEventListener('click', function () {
     const val = $('roomCode').value;
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(val).then(function () {
-            $('connStatus').textContent = '已复制房间号！';
-            setTimeout(function () { $('connStatus').textContent = '等待对方加入...'; }, 800);
-        }).catch(function () {
+    const done = () => setConnStatus('已复制房间号！', 2000);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).then(done).catch(function () {
             $('roomCode').select();
             document.execCommand('copy');
-            $('connStatus').textContent = '已复制房间号！';
+            done();
         });
     } else {
         $('roomCode').select();
         document.execCommand('copy');
-        $('connStatus').textContent = '已复制房间号！';
+        done();
     }
 });
 
-/* 棋盘点击 */
 $('board').addEventListener('click', function (e) {
     const el = e.target.closest('.hline, .vline');
     if (!el) return;
@@ -1204,9 +1332,19 @@ $('board').addEventListener('click', function (e) {
     doMove(o, r, c, S.myId, true);
 });
 
-/* 阻止右键菜单（移动端长按） */
 $('board').addEventListener('contextmenu', function (e) {
     e.preventDefault();
+});
+
+/* 关闭页面前主动通知对方 */
+window.addEventListener('beforeunload', function () {
+    if (mqttClient && mqttClient.connected && roomTopic) {
+        try {
+            mqttClient.publish(roomTopic,
+                JSON.stringify({ type: 'bye', _from: myPeerId }),
+                { qos: 1 });
+        } catch (e) {}
+    }
 });
 
 /* ============================================================
