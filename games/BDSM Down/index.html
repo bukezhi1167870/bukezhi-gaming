@@ -463,6 +463,15 @@ let cardSeq = 0;
 let placementState = null;
 
 /* ---------------------------------------------------------
+   风险区阈值（按模式区分）
+   简单模式：10    困难模式：7
+   --------------------------------------------------------- */
+function riskThreshold() {
+  if (!S) return 7;
+  return S.mode === 'easy' ? 10 : 7;
+}
+
+/* ---------------------------------------------------------
    本地记录（localStorage）
    --------------------------------------------------------- */
 const STORAGE_KEY = 'chenni_below_stats_v1';
@@ -613,13 +622,14 @@ function renderCards() {
 
 function renderRisk() {
   const total = sumArr(S.risk);
+  const threshold = riskThreshold();
   const el = $('risk-dice');
   el.innerHTML = S.risk.length===0
     ? '<span class="empty">空</span>'
     : S.risk.map(v => dieHTML(v,'risk small')).join('');
   const badge = $('risk-sum');
-  badge.textContent = total;
-  badge.className = 'badge' + (total>7 ? ' danger' : '');
+  badge.textContent = `${total} / ${threshold}`;
+  badge.className = 'badge' + (total > threshold ? ' danger' : '');
 }
 
 function renderPending() {
@@ -822,7 +832,7 @@ function doConfirmPlacement() {
    --------------------------------------------------------- */
 function resolveTurn(placedFaces) {
   const total = sumArr(S.risk);
-  if (total > 7) triggerDanger();
+  if (total > riskThreshold()) triggerDanger();
 
   const cardCompleted = checkCompletedCards();
 
@@ -938,16 +948,22 @@ async function handleAction(key) {
 
 /* ---------------------------------------------------------
    危险触发
+   简单模式：不清除未完成契约卡上的骰子
+   困难模式：清除未完成契约卡上的骰子
    --------------------------------------------------------- */
 function triggerDanger() {
   const total = sumArr(S.risk);
   S.hp -= 1;
-  pushLog(`⚠ 风险区合计 ${total} > 7 —— 触发危险！`, 'warn');
-  pushLog('未完成的契约卡上所有骰子被清除，风险区清空，耐力 -1。', 'warn');
+  pushLog(`⚠ 风险区合计 ${total} > ${riskThreshold()} —— 触发危险！`, 'warn');
 
-  for (const c of S.cards)
-    for (const s of c.slots)
-      s.die = null;
+  if (S.mode === 'easy') {
+    pushLog('风险区清空，耐力 -1。未完成的契约卡上的骰子保留。', 'warn');
+  } else {
+    pushLog('未完成的契约卡上所有骰子被清除，风险区清空，耐力 -1。', 'warn');
+    for (const c of S.cards)
+      for (const s of c.slots)
+        s.die = null;
+  }
 
   S.risk = [];
   S.pending = [];
@@ -1121,11 +1137,11 @@ function showStart() {
       <div class="modes">
         <button data-mode="easy">
           <b>简单模式</b>
-          <span>10 理智（上限 10） · 10 耐力 · 场上同时存在 2 张契约卡 · 审视骰 5~6 额外 +1 理智</span>
+          <span>10 理智（上限 10） · 10 耐力 · 场上同时存在 2 张契约卡 · 审视骰 5~6 额外 +1 理智 · 风险阈值 10 · 风险溢出不清骰</span>
         </button>
         <button data-mode="hard">
           <b>困难模式</b>
-          <span>6 理智（上限 6） · 5 耐力 · 场上只存在 1 张契约卡 · 审视骰 6 额外 +1 理智</span>
+          <span>6 理智（上限 6） · 5 耐力 · 场上只存在 1 张契约卡 · 审视骰 6 额外 +1 理智 · 风险阈值 7 · 风险溢出清骰</span>
         </button>
       </div>
       <details>
@@ -1137,7 +1153,7 @@ function showStart() {
           <li><b>自省</b>：投掷后可选，-1理智，重投所有骰子，不占行动配额。</li>
           <li><b>结算</b>：点击结算后，逐颗选择骰子放入哪张契约卡或风险区。</li>
           <li><b>指令</b>：填入契约卡的骰子会触发主人指令；若只填入 6 点，显示“无指令（休息回合）”。</li>
-          <li><b>危险</b>：风险区合计 &gt; 7 时触发，未完成契约卡上的骰子清除、风险区清空、耐力 -1。已填满的卡不受影响。</li>
+          <li><b>危险</b>：风险区合计超过阈值时触发（简单模式阈值 10，困难模式阈值 7），风险区清空、耐力 -1。简单模式保留未完成契约卡上的骰子；困难模式清除未完成契约卡上的骰子。已填满的卡不受影响。</li>
           <li><b>翻面</b>：填满一张契约卡 → 翻面 → 理智 +1 → 投审视骰（简单模式 5~6 额外 +1 理智；困难模式 6 额外 +1 理智）→ 进入下一阶段。</li>
           <li><b>阶段</b>：每阶段 5 回合。用尽则理智 -1，未完成契约卡上的骰子与风险区保持不变，进入下一阶段。</li>
           <li><b>结束</b>：填满 6 张契约卡（胜利）或耐力归零（失败）。</li>
