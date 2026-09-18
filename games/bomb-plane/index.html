@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>飞机大战·小圈SP版</title>
-<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+<!-- MQTT 客户端（国内公共中继方案，不再依赖 PeerJS / WebRTC） -->
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+  if (typeof mqtt === 'undefined') {
+    document.write('<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"><\/script>');
+  }
+</script>
+
 <style>
     :root {
         --cell-size: 28px;
@@ -15,7 +23,7 @@
         --miss-color: #999;
         --board-bg: #e8f0fe;
         --cell-border: #b0c4de;
-        --sunk-color: #8b0000; /* 深红黑 */
+        --sunk-color: #8b0000;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,6 +40,8 @@
         -webkit-user-select: none;
         -webkit-tap-highlight-color: transparent;
     }
+
+    .hidden { display: none !important; }
 
     .game-container {
         background: #16213e;
@@ -94,7 +104,6 @@
     .cell.enemy-miss::after { content: '×'; color: #888; font-size: calc(var(--cell-size)*0.6); }
     .cell.enemy-hit { background: #ffcc00; }
     .cell.enemy-hit::after { content: '✕'; color: #c41e1e; font-size: calc(var(--cell-size)*0.7); font-weight: bold; }
-    /* 击落飞机：红黑色格子 */
     .cell.enemy-sunk { background: var(--sunk-color); }
     .cell.enemy-sunk::after { content: '✕'; color: #ff0000; font-size: calc(var(--cell-size)*0.75); font-weight: bold; }
 
@@ -174,7 +183,7 @@
     <div>
         <input type="text" id="nicknameInput" class="nickname-input" placeholder="昵称" maxlength="6" value="玩家1">
         <button class="action-btn primary" id="hostBtn">创建房间</button>
-        <input type="text" id="roomInput" placeholder="输入16位房间号">
+        <input type="text" id="roomInput" placeholder="输入8位房间号">
         <button class="action-btn secondary" id="joinBtn">加入房间</button>
     </div>
     <div class="room-display hidden" id="roomDisplayArea">
@@ -239,7 +248,7 @@
     <h3>📜 游戏规则</h3>
     <ul>
         <li><strong>棋盘：</strong>15×15 方格，双方各自布置三架飞机，对方不可见。</li>
-        <li><strong>飞机：</strong>机头机头及中心伤害3，其余部位伤害1。每架飞机初始生命3点，生命值归零即坠机。</li>
+        <li><strong>飞机：</strong>机头及中心伤害3，其余部位伤害1。每架飞机初始生命3点，生命值归零即坠机。</li>
         <li><strong>攻击：</strong>双方轮流攻击，每人每回合只能攻击一次，无论是否命中都会切换玩家。</li>
         <li><strong>下注：</strong>双方选择惩罚项目（巴掌/戒尺/强高/寸止）和数量（0~50），下注互不可见，游戏开始后公开。</li>
         <li><strong>结算：</strong>获胜方赢得赌注 = 双方各自的赌注数量 × (3 - 获胜方坠机数)。</li>
@@ -249,10 +258,11 @@
 
 <script>
 (function() {
+    'use strict';
+
     const BOARD_SIZE = 15;
     const PLANES_PER_PLAYER = 3;
 
-    // 飞机形状：机头下一格为橙色，伤害3
     const PLANE_SHAPES = {
         up: [
             {r:0, c:0, isHead:true, isCenter:false, damage:3},
@@ -310,9 +320,11 @@
         planes: [], enemyPlanes: [], attacksOnEnemy: [],
         enemyAttacksOnMe: [], sunkPlaneIds: [], enemySunkPlaneIds: [],
         bet: null, enemyBet: null,
-        connected: false, conn: null, isHost: false, roomCode: null,
+        isHost: false, roomCode: null,
         myName: '', enemyName: '',
         bothNicknamesReady: false,
+        notice: '',
+        _byeHandled: false,
     };
 
     // DOM 元素
@@ -405,6 +417,7 @@
         game.hoverPos = null;
         render();
         updateLabels();
+        setConnStatus('');
         statusText.textContent = `${game.myName}，请布置你的飞机`;
     }
 
@@ -436,7 +449,7 @@
                     else if (cellInfo.isCenter) cell.classList.add('plane-center');
                     else cell.classList.add('plane-body');
                 }
-                if (isCellAttackedByEnemy(r, c)) if (!isSunk) cell.classList.add('own-hit');
+                if (isCellAttackedByEnemy(r, c) && !isSunk) cell.classList.add('own-hit');
                 return;
             }
             if (isCellAttackedByEnemy(r, c)) cell.classList.add('own-miss');
@@ -464,8 +477,8 @@
                 if (attack.result === 'miss') {
                     cell.classList.add('enemy-miss');
                 } else {
-                    // 判断该攻击所属飞机是否已击落
-                    const isSunk = attack.planeId && game.enemySunkPlaneIds.includes(attack.planeId);
+                    const isSunk = attack.planeId !== null && attack.planeId !== undefined &&
+                                   game.enemySunkPlaneIds.includes(attack.planeId);
                     if (attack.result === 'sunk' || isSunk) {
                         cell.classList.add('enemy-sunk');
                     } else {
@@ -477,31 +490,31 @@
     }
 
     function renderStatusAndControls() {
-        if (game.phase === 'setup') {
+        if (game.notice) {
+            statusText.textContent = game.notice;
+        } else if (game.phase === 'setup') {
             const placed = game.planes.length;
             statusText.textContent = `${game.myName}，请布置飞机（${placed}/${PLANES_PER_PLAYER}）`;
+        } else if (game.phase === 'betting') {
+            statusText.textContent = '等待双方下注...';
+        } else if (game.phase === 'attack') {
+            statusText.textContent = game.myTurn
+                ? `${game.myName}的回合，点击敌方棋盘攻击`
+                : `${game.enemyName || '对方'}的回合...`;
+        } else if (game.phase === 'gameover') {
+            statusText.textContent = '游戏结束';
+        } else {
+            statusText.textContent = '等待连接...';
+        }
+
+        if (game.phase === 'setup') {
+            const placed = game.planes.length;
             dirButtons.forEach(btn => btn.disabled = false);
             actionBtn.textContent = placed >= PLANES_PER_PLAYER ? '✅ 完成布置' : '📌 确定放置';
             actionBtn.disabled = false;
             undoBtn.classList.toggle('hidden', placed === 0);
             undoBtn.disabled = placed === 0;
-        } else if (game.phase === 'betting') {
-            statusText.textContent = '等待双方下注...';
-            dirButtons.forEach(btn => btn.disabled = true);
-            actionBtn.disabled = true;
-            undoBtn.classList.add('hidden');
-        } else if (game.phase === 'attack') {
-            statusText.textContent = game.myTurn ? `${game.myName}的回合，点击敌方棋盘攻击` : `${game.enemyName || '对方'}的回合...`;
-            dirButtons.forEach(btn => btn.disabled = true);
-            actionBtn.disabled = true;
-            undoBtn.classList.add('hidden');
-        } else if (game.phase === 'gameover') {
-            statusText.textContent = '游戏结束';
-            dirButtons.forEach(btn => btn.disabled = true);
-            actionBtn.disabled = true;
-            undoBtn.classList.add('hidden');
         } else {
-            statusText.textContent = '等待连接...';
             dirButtons.forEach(btn => btn.disabled = true);
             actionBtn.disabled = true;
             undoBtn.classList.add('hidden');
@@ -535,7 +548,6 @@
         game.phase = 'betting';
         render();
         showBetOverlay();
-        statusText.textContent = `等待${game.enemyName || '对方'}完成布置...`;
     }
 
     function attackCell(row, col) {
@@ -546,109 +558,272 @@
         render();
     }
 
-    let peer = null;
+    /* ====================== 联机（公共 MQTT 中继） ====================== */
+    const MQTT_BROKERS = [
+        'wss://broker-cn.emqx.io:8084/mqtt',   // EMQX 中国节点（首选）
+        'wss://broker.emqx.io:8084/mqtt'       // EMQX 国际节点（备用）
+    ];
+    const TOPIC_PREFIX = 'bdsm_planes/v1/';
 
-    function generateRoomCode() {
-        let code = '';
-        for (let i = 0; i < 16; i++) code += Math.floor(Math.random() * 10);
-        return code;
+    let mqttClient    = null;
+    let myPeerId      = '';
+    let roomTopic     = '';
+    let brokerIndex   = 0;
+    let helloTimer    = null;
+    let everConnected = false;
+    let gotEnemy      = false;
+    let connectWatchdog = null;
+
+    let sendSeq = 0;
+    const seenMids = new Set();
+    const SEEN_MAX = 300;
+
+    function randomDigits(n) {
+        let s = '';
+        for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 10);
+        return s;
     }
 
-    function formatRoomCode(code) {
-        return code.match(/.{1,4}/g).join('-');
+    function generateRoomCode() { return randomDigits(8); }
+    function formatRoomCode(code) { return code; }   // 8 位纯数字，不加连字符
+
+    function setConnStatus(text, revertAfter) {
+        connStatus.textContent = text;
+
+        const inGame = !gameContainer.classList.contains('hidden');
+        if (inGame) {
+            game.notice = text;
+            render();
+            if (revertAfter) {
+                setTimeout(() => {
+                    if (game.notice === text) {
+                        game.notice = '';
+                        render();
+                    }
+                }, revertAfter);
+            }
+        } else if (revertAfter) {
+            setTimeout(() => {
+                if (!gotEnemy) {
+                    connStatus.textContent = game.isHost ? '等待对方加入...' : '已连接，等待主机...';
+                } else {
+                    connStatus.textContent = '已连接！';
+                }
+            }, revertAfter);
+        }
     }
 
-    function initPeer() {
-        peer = new Peer();
-        peer.on('open', (id) => console.log('我的Peer ID:', id));
-        peer.on('connection', (conn) => {
-            conn.on('open', () => {
-                game.conn = conn;
-                game.connected = true;
-                game.isHost = true;
-                game.myId = 1;
-                connectionPanel.classList.add('hidden');
-                gameContainer.classList.remove('hidden');
-                statusText.textContent = '已连接，等待昵称交换...';
-                // 发送昵称
-                send({ type: 'nickname', name: game.myName });
-            });
-            conn.on('data', handleData);
-            conn.on('close', () => { alert('连接已断开'); location.reload(); });
+    function connectRelay() {
+        if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
+        const url = MQTT_BROKERS[brokerIndex];
+        setConnStatus('正在连接中继服务器...');
+
+        const client = mqtt.connect(url, {
+            clientId: 'planes_' + myPeerId + '_' + Math.random().toString(16).slice(2, 8),
+            clean: true,
+            keepalive: 30,
+            connectTimeout: 8000,
+            reconnectPeriod: 2000,
+            will: {
+                topic: roomTopic,
+                payload: JSON.stringify({ type: 'bye', _from: myPeerId }),
+                qos: 1,
+                retain: false
+            }
         });
-        peer.on('error', (err) => { console.error(err); alert('PeerJS错误: ' + err.type); });
+        mqttClient = client;
+
+        if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
+        connectWatchdog = setTimeout(() => {
+            if (!everConnected && mqttClient === client) {
+                resetToLobby('无法连接中继服务器，请检查网络后重试');
+            }
+        }, 15000);
+
+        client.on('connect', () => {
+            if (mqttClient !== client) return;
+            everConnected = true;
+            if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
+
+            client.subscribe(roomTopic, { qos: 0 }, (err) => {
+                if (err) { console.error('subscribe fail', err); return; }
+                if (!gotEnemy) {
+                    setConnStatus(game.isHost ? '等待对方加入...' : '已连接，等待主机...');
+                }
+                startHello();
+            });
+        });
+
+        client.on('message', (topic, payload) => {
+            if (mqttClient !== client) return;
+            let data;
+            try { data = JSON.parse(payload.toString()); } catch (e) { return; }
+            if (!data || data._from === myPeerId) return;
+            handleData(data);
+        });
+
+        client.on('error', (err) => {
+            if (mqttClient !== client) return;
+            console.error('MQTT error:', err);
+            if (!everConnected && brokerIndex < MQTT_BROKERS.length - 1) {
+                brokerIndex++;
+                try { client.end(true); } catch (e) {}
+                if (mqttClient === client) mqttClient = null;
+                setTimeout(connectRelay, 500);
+            }
+        });
+    }
+
+    function startHello() {
+        send({ type: 'nickname', name: game.myName });
+        if (helloTimer) return;
+        helloTimer = setInterval(() => {
+            if (gotEnemy) { stopHello(); return; }
+            if (!mqttClient || !mqttClient.connected) return;
+            send({ type: 'nickname', name: game.myName });
+        }, 1500);
+    }
+    function stopHello() {
+        if (helloTimer) { clearInterval(helloTimer); helloTimer = null; }
     }
 
     function hostGame() {
         const name = nicknameInput.value.trim() || '玩家1';
         game.myName = name;
+        game.isHost = true;
+        game.myId = 1;
+        game._byeHandled = false;
+        game.bothNicknamesReady = false;
+        myPeerId = 'h' + randomDigits(6);
+        everConnected = false;
+        brokerIndex = 0;
+        gotEnemy = false;
+
         const code = generateRoomCode();
         game.roomCode = code;
-        peer = new Peer(code);
-        peer.on('open', (id) => {
-            roomCodeInput.value = formatRoomCode(code);
-            roomDisplayArea.classList.remove('hidden');
-            connStatus.textContent = '等待对方加入...';
-            hostBtn.disabled = true;
-            joinBtn.disabled = true;
-            roomInput.disabled = true;
-            nicknameInput.disabled = true;
-        });
-        peer.on('connection', (conn) => {
-            conn.on('open', () => {
-                game.conn = conn;
-                game.connected = true;
-                game.isHost = true;
-                game.myId = 1;
-                connectionPanel.classList.add('hidden');
-                gameContainer.classList.remove('hidden');
-                statusText.textContent = '已连接，等待昵称交换...';
-                // 发送昵称
-                send({ type: 'nickname', name: game.myName });
-            });
-            conn.on('data', handleData);
-            conn.on('close', () => { alert('连接已断开'); location.reload(); });
-        });
-        peer.on('error', (err) => { console.error(err); alert('PeerJS错误: ' + err.type); });
+        roomTopic = TOPIC_PREFIX + code;
+
+        roomCodeInput.value = formatRoomCode(code);
+        roomDisplayArea.classList.remove('hidden');
+        hostBtn.disabled = true;
+        joinBtn.disabled = true;
+        roomInput.disabled = true;
+        nicknameInput.disabled = true;
+
+        connectRelay();
     }
 
     function joinGame() {
         const name = nicknameInput.value.trim() || '玩家2';
         game.myName = name;
-        let input = roomInput.value.trim().replace(/-/g, '');
-        if (!/^\d{16}$/.test(input)) { alert('请输入有效的16位数字房间号'); return; }
-        const remoteId = input;
-        initPeer();
-        peer.on('open', () => {
-            const conn = peer.connect(remoteId, { reliable: true });
-            conn.on('open', () => {
-                game.conn = conn;
-                game.connected = true;
-                game.isHost = false;
-                game.myId = 2;
-                connectionPanel.classList.add('hidden');
-                gameContainer.classList.remove('hidden');
-                statusText.textContent = '已连接，等待昵称交换...';
-                // 发送昵称
-                send({ type: 'nickname', name: game.myName });
-            });
-            conn.on('data', handleData);
-            conn.on('close', () => { alert('连接已断开'); location.reload(); });
-        });
+        game.isHost = false;
+        game.myId = 2;
+        game._byeHandled = false;
+        game.bothNicknamesReady = false;
+        myPeerId = 'g' + randomDigits(6);
+        everConnected = false;
+        brokerIndex = 0;
+        gotEnemy = false;
+
+        const input = roomInput.value.trim();
+        if (!/^\d{8}$/.test(input)) { alert('请输入有效的8位数字房间号'); return; }
+
+        game.roomCode = input;
+        roomTopic = TOPIC_PREFIX + input;
+
+        hostBtn.disabled = true;
+        joinBtn.disabled = true;
+        roomInput.disabled = true;
+        nicknameInput.disabled = true;
+
+        connectRelay();
     }
 
     function send(data) {
-        if (game.conn && game.conn.open) game.conn.send(data);
+        if (!mqttClient || !mqttClient.connected) return;
+        data._from = myPeerId;
+        data._mid = myPeerId + '#' + (++sendSeq);
+        try {
+            mqttClient.publish(roomTopic, JSON.stringify(data), { qos: 1 });
+        } catch (e) { console.error(e); }
+    }
+
+    function resetToLobby(message) {
+        stopHello();
+        gotEnemy = false;
+        everConnected = false;
+        brokerIndex = 0;
+
+        if (connectWatchdog) { clearTimeout(connectWatchdog); connectWatchdog = null; }
+        if (mqttClient) { try { mqttClient.end(true); } catch (e) {} mqttClient = null; }
+        roomTopic = '';
+
+        seenMids.clear();
+
+        // 关闭所有遮罩
+        infoOverlay.classList.add('hidden');
+        betOverlay.classList.add('hidden');
+
+        // 重置对局状态
+        game.phase = 'idle';
+        game.myTurn = false;
+        game.planes = [];
+        game.enemyPlanes = [];
+        game.attacksOnEnemy = [];
+        game.enemyAttacksOnMe = [];
+        game.sunkPlaneIds = [];
+        game.enemySunkPlaneIds = [];
+        game.bet = null;
+        game.enemyBet = null;
+        game.enemyName = '';
+        game.bothNicknamesReady = false;
+        game.notice = '';
+        game._byeHandled = false;
+        game.hoverPos = null;
+
+        // 显示连接面板
+        gameContainer.classList.add('hidden');
+        connectionPanel.classList.remove('hidden');
+        hostBtn.disabled = false;
+        joinBtn.disabled = false;
+        roomInput.disabled = false;
+        nicknameInput.disabled = false;
+        roomInput.value = '';
+        roomDisplayArea.classList.add('hidden');
+        updateLabels();
+        render();
+
+        setConnStatus(message || '已断开连接，请重新创建或加入房间');
     }
 
     function handleData(data) {
         if (!data || !data.type) return;
+
+        // ① 消息去重（防止 QoS 1 重传的副本被处理两次）
+        if (data._mid) {
+            if (seenMids.has(data._mid)) return;
+            seenMids.add(data._mid);
+            if (seenMids.size > SEEN_MAX) {
+                const it = seenMids.values();
+                for (let i = 0; i < 100; i++) {
+                    const v = it.next();
+                    if (v.done) break;
+                    seenMids.delete(v.value);
+                }
+            }
+        }
+
         switch (data.type) {
             case 'nickname':
+                if (!data.name) return;
+                // 已握手后忽略重复 hello，避免反复刷新状态栏
+                if (gotEnemy) return;
                 game.enemyName = data.name;
+                gotEnemy = true;
+                stopHello();
                 updateLabels();
+                setConnStatus('已连接！');
                 if (game.isHost) {
-                    // 主机收到对方昵称后开始游戏
                     if (!game.bothNicknamesReady) {
                         game.bothNicknamesReady = true;
                         startLocalGame();
@@ -656,14 +831,18 @@
                     }
                 }
                 break;
+
             case 'start_game':
-                if (!game.bothNicknamesReady) {
-                    game.bothNicknamesReady = true;
-                }
+                // 防止重传导致重复初始化
+                if (game.phase !== 'idle') return;
+                game.bothNicknamesReady = true;
                 startLocalGame();
                 break;
+
             case 'setup_done':
+                // 对方已完成布置，暂无操作
                 break;
+
             case 'bet_submitted':
                 game.enemyBet = data.bet;
                 if (game.bet && game.enemyBet) {
@@ -671,24 +850,38 @@
                     send({ type: 'bet_reveal', enemyBet: game.bet });
                 }
                 break;
+
             case 'bet_reveal':
                 game.enemyBet = data.enemyBet;
                 showBetReveal();
                 break;
+
             case 'start_attack':
                 game.phase = 'attack';
                 game.myTurn = (data.turn === game.myId);
                 render();
                 break;
+
             case 'attack_request':
                 handleEnemyAttack(data.row, data.col);
                 break;
+
             case 'attack_result':
                 handleAttackResult(data);
                 break;
+
             case 'game_over':
                 showGameOver(data.winner, data.settlement);
                 break;
+
+            case 'bye':
+                if (game.enemyName && !game._byeHandled) {
+                    game._byeHandled = true;
+                    alert('对方已断开连接，将返回房间面板');
+                    resetToLobby('对方已断开连接，请重新创建或加入房间');
+                }
+                break;
+
             default:
                 console.log('未知消息', data);
         }
@@ -729,8 +922,7 @@
         const { row, col, result, planeId, sunkPlaneCells } = data;
         game.attacksOnEnemy.push({ row, col, result, planeId });
         if (result === 'sunk') {
-            // 记录已击落的飞机ID（不再需要完整cells用于显示，但保留数据）
-            if (planeId !== null && !game.enemySunkPlaneIds.includes(planeId)) {
+            if (planeId !== null && planeId !== undefined && !game.enemySunkPlaneIds.includes(planeId)) {
                 game.enemySunkPlaneIds.push(planeId);
                 if (sunkPlaneCells) {
                     game.enemyPlanes.push({ id: planeId, cells: sunkPlaneCells });
@@ -772,7 +964,6 @@
         render();
         const isWinner = (winnerId === game.myId);
         const winnerName = isWinner ? game.myName : game.enemyName;
-        const loserName = isWinner ? game.enemyName : game.myName;
         infoTitle.textContent = isWinner ? '🎉 你赢了！' : '😞 你输了';
         infoContent.innerHTML = `
             <p>获胜方：${winnerName}</p>
@@ -782,6 +973,8 @@
             <p>最终赢得赌注：${settlement.rewardText}</p>
         `;
         infoOverlay.classList.remove('hidden');
+        infoBtn.textContent = '确定';
+        infoBtn.disabled = false;
         infoBtn.onclick = () => infoOverlay.classList.add('hidden');
     }
 
@@ -792,7 +985,6 @@
         game.bet = null;
     }
 
-    // 下注选项点击修复
     betOptionsContainer.addEventListener('click', (e) => {
         const btn = e.target.closest('.bet-option');
         if (!btn) return;
@@ -819,12 +1011,15 @@
     function showBetReveal() {
         const myBet = game.bet;
         const enemyBet = game.enemyBet;
+        if (!myBet || !enemyBet) return;
         infoTitle.textContent = '赌注公开';
         infoContent.innerHTML = `
             <p>${game.myName} 下注：${myBet.type} ${myBet.amount}</p>
             <p>${game.enemyName || '对方'} 下注：${enemyBet.type} ${enemyBet.amount}</p>
         `;
         infoOverlay.classList.remove('hidden');
+        infoBtn.textContent = game.isHost ? '开始攻击' : '确定';
+        infoBtn.disabled = false;
         infoBtn.onclick = () => {
             infoOverlay.classList.add('hidden');
             if (game.isHost) {
@@ -833,31 +1028,36 @@
                 send({ type: 'start_attack', turn: game.myId });
                 render();
             } else {
-                statusText.textContent = '等待主机开始攻击...';
+                setConnStatus('等待主机开始攻击...');
             }
         };
     }
 
-    // 事件绑定
+    /* ====================== 事件绑定 ====================== */
     hostBtn.addEventListener('click', hostGame);
     joinBtn.addEventListener('click', joinGame);
 
     copyRoomBtn.addEventListener('click', () => {
         const code = roomCodeInput.value;
-        navigator.clipboard.writeText(code).then(() => {
-            connStatus.textContent = '已复制房间号！';
-            setTimeout(() => connStatus.textContent = '等待对方加入...', 2000);
-        }).catch(() => {
+        const done = () => setConnStatus('已复制房间号！', 2000);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(done).catch(() => {
+                roomCodeInput.select();
+                document.execCommand('copy');
+                done();
+            });
+        } else {
             roomCodeInput.select();
             document.execCommand('copy');
-            connStatus.textContent = '已复制房间号！';
-        });
+            done();
+        }
     });
 
     dirButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             if (game.phase !== 'setup') return;
             game.selectedDir = btn.dataset.dir;
+            dirButtons.forEach(b => b.classList.toggle('active', b === btn));
             render();
         });
     });
@@ -907,6 +1107,7 @@
         const keyMap = { 'ArrowUp': 'up', 'ArrowRight': 'right', 'ArrowDown': 'down', 'ArrowLeft': 'left' };
         if (keyMap[e.key]) {
             game.selectedDir = keyMap[e.key];
+            dirButtons.forEach(b => b.classList.toggle('active', b.dataset.dir === game.selectedDir));
             e.preventDefault();
             render();
         }
@@ -916,6 +1117,17 @@
     ownBoardEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         if (game.phase === 'setup') undoLastPlane();
+    });
+
+    // 关闭页面前主动通知对方
+    window.addEventListener('beforeunload', () => {
+        if (mqttClient && mqttClient.connected && roomTopic) {
+            try {
+                mqttClient.publish(roomTopic,
+                    JSON.stringify({ type: 'bye', _from: myPeerId }),
+                    { qos: 1 });
+            } catch (e) {}
+        }
     });
 
     render();
