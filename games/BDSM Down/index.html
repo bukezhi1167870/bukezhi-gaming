@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>沉溺之下 · BDSM单人游戏</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #2a1220 0%, transparent 60%),
+      #0a0709;
+    color:#f0e6ed;
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    font-size:14px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:10px 10px 40px;}
+
+  /* ---------- HUD ---------- */
+  .hud{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+    margin-bottom:12px;
+  }
+  .hud-item{
+    background:linear-gradient(180deg,#1c141b,#120c12);
+    border:1px solid #3d2735;border-radius:8px;
+    padding:6px 8px;display:flex;align-items:baseline;gap:4px;
+    box-shadow:inset 0 1px 0 #ffffff12;min-width:0;
+  }
+  .hud-item .lab{font-size:10.5px;color:#c4b0be;letter-spacing:.06em;white-space:nowrap;}
+  .hud-item .val{
+    font-size:14px;font-weight:700;color:#f5d6e4;margin-left:auto;
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .hud-item .val.low{color:#ff8fa8;}
+  .hud-item .val.high{color:#a8e6c0;}
+
+  /* ---------- 布局 ---------- */
+  .board{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start;}
+  @media (max-width:820px){.board{grid-template-columns:1fr;}.side{position:static!important;}}
+
+  /* ---------- 契约卡 ---------- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+  .card{
+    background:linear-gradient(180deg,#1e141c,#140e14);
+    border:1px solid #4a2c3e;border-radius:12px;padding:12px;
+    box-shadow:0 10px 28px -16px #000, inset 0 1px 0 #ffffff12;
+    animation:pop .25s ease-out;
+  }
+  .card-head{
+    display:flex;justify-content:space-between;
+    font-size:11px;letter-spacing:.14em;color:#c9a0b5;
+    margin-bottom:8px;text-transform:uppercase;
+  }
+  .slot{
+    display:flex;align-items:center;gap:8px;
+    border:1px dashed #4a3040;border-radius:8px;
+    padding:6px 8px;margin-bottom:6px;
+    background:#120c11;transition:.25s;
+  }
+  .slot:last-child{margin-bottom:0;}
+  .slot.filled{
+    border-style:solid;border-color:#a0365a;
+    background:linear-gradient(90deg,#2a1120,#1a0e16);
+    box-shadow:inset 0 0 18px -6px #d4426e;
+  }
+  .slot-inst{font-size:12px;color:#c4b0be;}
+  .slot.filled .slot-inst{color:#f0d6e2;}
+
+  /* ---------- 骰子图标 ---------- */
+  .die-icon{
+    position:relative;
+    width:34px;height:34px;flex:0 0 34px;
+    border-radius:9px;
+    background:linear-gradient(160deg,#3a2432,#221520);
+    border:1px solid #5a3550;
+    box-shadow:inset 0 1px 0 #ffffff1f, 0 2px 6px -2px #000;
+  }
+  .die-icon .pip{
+    position:absolute;width:6px;height:6px;border-radius:50%;
+    background:#f0c8dc;transform:translate(-50%,-50%);
+    box-shadow:inset 0 -1px 1px #0008;
+  }
+  .die-icon.risk{
+    background:linear-gradient(160deg,#6a1a38,#3a0c20);
+    border-color:#a82a52;
+  }
+  .die-icon.risk .pip{background:#ffd0e0;}
+  .die-icon.pending{
+    background:linear-gradient(160deg,#6a5218,#3a2c0c);
+    border-color:#a88020;
+  }
+  .die-icon.pending .pip{background:#ffeeb0;}
+  .die-icon.hint{
+    background:linear-gradient(160deg,#2c1d28,#1a1018);
+    border-color:#7a4e6c;
+  }
+  .die-icon.hint .pip{background:#e0b8ce;}
+  .die-icon.slot-die{
+    width:28px;height:28px;flex:0 0 28px;border-radius:7px;
+  }
+  .die-icon.slot-die .pip{width:4.5px;height:4.5px;}
+  .die-icon.slot-die.slot-filled{
+    background:linear-gradient(160deg,#d4426e,#8a1e3e);
+    border-color:#f06a92;
+    box-shadow:inset 0 1px 0 #ffffff40, 0 0 12px -2px #d4426e88;
+  }
+  .die-icon.slot-die.slot-filled .pip{background:#fff;}
+  .die-icon.small{width:26px;height:26px;flex:0 0 26px;border-radius:7px;}
+  .die-icon.small .pip{width:4.5px;height:4.5px;}
+  .die-icon.big{width:46px;height:46px;flex:0 0 46px;border-radius:11px;}
+  .die-icon.big .pip{width:8px;height:8px;}
+
+  /* ---------- 侧栏 ---------- */
+  .side{display:flex;flex-direction:column;gap:10px;position:sticky;top:10px;}
+  .panel-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .panel{
+    background:#150f15;border:1px solid #3a2434;
+    border-radius:10px;padding:9px 11px;
+  }
+  .panel h3{
+    margin:0 0 7px;font-size:11px;letter-spacing:.12em;
+    color:#c4b0be;font-weight:600;display:flex;align-items:center;gap:6px;
+  }
+  .badge{
+    margin-left:auto;background:#3a2232;color:#e0b8ce;
+    border-radius:20px;padding:0 8px;font-size:11.5px;
+    font-variant-numeric:tabular-nums;
+  }
+  .badge.danger{background:#6a142e;color:#ffc4d7;animation:pulse 1s infinite;}
+  @keyframes pulse{50%{opacity:.45;}}
+
+  .dice-row{display:flex;flex-wrap:wrap;gap:5px;min-height:26px;align-items:center;}
+  .empty{color:#7a6672;font-size:11.5px;}
+
+  /* ---------- 行动按钮 ---------- */
+  .actions{display:flex;flex-direction:column;gap:7px;padding:9px;}
+  button.act{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    background:linear-gradient(180deg,#281926,#1a101a);
+    border:1px solid #4a3040;color:#f0e6ed;border-radius:8px;
+    padding:8px 10px;cursor:pointer;transition:.15s;
+    font-family:inherit;text-align:left;
+  }
+  button.act:hover:not(:disabled){
+    border-color:#d4426e;background:linear-gradient(180deg,#3a1c2e,#241220);
+    transform:translateY(-1px);
+  }
+  button.act:active:not(:disabled){transform:translateY(0);}
+  button.act:disabled{
+    opacity:.55;cursor:not-allowed;
+    background:#181118;border-color:#33222e;
+  }
+  button.act:disabled .act-name{color:#8a7a85;}
+  button.act:disabled .act-desc{color:#6a5a65;}
+  button.act:disabled .act-sub{color:#7a5a68;}
+
+  .act-main{flex:1;min-width:0;}
+  .act-name{font-size:13.5px;font-weight:600;color:#f0e6ed;letter-spacing:.03em;}
+  .act-desc{font-size:10.5px;color:#c4b0be;margin-top:2px;line-height:1.3;}
+  .act-sub{font-size:11px;color:#f0a8c8;white-space:nowrap;text-align:right;}
+
+  /* ---------- 日志 ---------- */
+  .log{
+    margin-top:14px;background:#110c11;border:1px solid #2a1c28;
+    border-radius:10px;padding:10px 14px;max-height:150px;
+    overflow-y:auto;font-size:12.5px;color:#c4b0be;
+  }
+  .log div{padding:3px 0;border-bottom:1px solid #1e1420;}
+  .log div:last-child{border-bottom:none;}
+  .log .hi{color:#f0d6e2;}
+  .log .warn{color:#ff9ab0;}
+  .log .good{color:#a8e6c0;}
+
+  @keyframes pop{from{transform:scale(.6);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+  /* ---------- 弹窗 ---------- */
+  .overlay{
+    position:fixed;inset:0;background:#000000d8;
+    backdrop-filter:blur(6px);display:grid;place-items:center;
+    padding:14px;z-index:50;animation:fadein .2s ease-out;
+  }
+  @keyframes fadein{from{opacity:0;}to{opacity:1;}}
+  .modal-box{
+    background:linear-gradient(180deg,#1e141c,#100b10);
+    border:1px solid #4a2c3e;border-radius:16px;padding:16px;
+    max-width:520px;width:100%;max-height:88vh;overflow-y:auto;
+    box-shadow:0 30px 90px -30px #d4426e66;
+    animation:pop .25s ease-out;
+  }
+  .modal-box h3{
+    margin:0 0 12px;font-size:13.5px;letter-spacing:.14em;
+    color:#f5d6e4;font-weight:600;text-align:center;
+  }
+
+  /* ---------- 契约槽摘要 ---------- */
+  .slot-summary{
+    display:flex;flex-wrap:wrap;gap:8px;
+    padding:8px 10px;margin-bottom:12px;
+    background:#100a10;border:1px solid #3a2434;
+    border-radius:10px;
+  }
+  .summary-item{
+    display:flex;align-items:center;gap:6px;
+    background:#1a1219;border:1px solid #4a3040;
+    border-radius:8px;padding:4px 8px;
+  }
+  .summary-label{
+    font-size:10.5px;color:#c9a0b5;letter-spacing:.08em;
+    white-space:nowrap;
+  }
+  .summary-dice{
+    display:flex;gap:3px;align-items:center;flex-wrap:wrap;
+  }
+
+  .modal-dice{
+    display:flex;flex-wrap:wrap;gap:12px;justify-content:center;
+    align-items:center;min-height:60px;padding:10px 0;
+  }
+  .modal-buttons{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+  .flow-btn{
+    width:100%;padding:12px 14px;border-radius:9px;
+    font-family:inherit;font-size:13.5px;cursor:pointer;
+    border:1px solid;transition:.15s;letter-spacing:.03em;
+    text-align:center;
+  }
+  .flow-btn.primary{
+    background:linear-gradient(180deg,#c93e64,#8a2244);
+    border-color:#e86a92;color:#fff;
+  }
+  .flow-btn.primary:hover:not(:disabled){background:linear-gradient(180deg,#e04e74,#a0294e);}
+  .flow-btn.secondary{
+    background:#251722;border-color:#5a3a4c;color:#f0e6ed;
+  }
+  .flow-btn.secondary:hover:not(:disabled){border-color:#d4426e;}
+  .flow-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---------- 放置选择 ---------- */
+  .placement-list{display:flex;flex-direction:column;gap:10px;}
+  .placement-row{
+    display:flex;align-items:center;gap:10px;
+    background:#150f15;border:1px solid #3a2434;
+    border-radius:10px;padding:9px 11px;
+  }
+  .placement-opts{display:flex;flex-wrap:wrap;gap:6px;flex:1;}
+  .opt-btn{
+    background:#251722;border:1px solid #5a3a4c;color:#e0d0da;
+    border-radius:7px;padding:6px 11px;font-size:12px;
+    cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .opt-btn:hover{border-color:#d4426e;}
+  .opt-btn.selected{
+    background:linear-gradient(180deg,#c93e64,#8a2244);
+    border-color:#e86a92;color:#fff;font-weight:600;
+  }
+
+  /* ---------- 指令弹窗 ---------- */
+  .command-modal{text-align:center;}
+  .command-intro{
+    color:#f0d6e2;font-size:13.5px;line-height:1.8;
+    margin:0 0 16px;letter-spacing:.03em;
+  }
+  .command-list{
+    display:flex;flex-direction:column;gap:8px;
+    margin-bottom:6px;
+  }
+  .command-item{
+    background:linear-gradient(90deg,#2a1120,#1a0e16);
+    border:1px solid #a0365a;border-radius:10px;
+    padding:11px 14px;font-size:14px;color:#fff;
+    letter-spacing:.06em;font-weight:600;
+    box-shadow:inset 0 0 20px -8px #d4426e;
+  }
+
+  /* ---------- 开始/结束 ---------- */
+  .endcard{
+    background:linear-gradient(180deg,#1e141c,#100b10);
+    border:1px solid #4a2c3e;border-radius:18px;padding:26px;
+    max-width:540px;width:100%;text-align:center;
+    box-shadow:0 30px 90px -30px #d4426e66;
+    max-height:90vh;overflow-y:auto;
+  }
+  .endcard h1{font-size:26px;letter-spacing:.24em;margin:0 0 6px;color:#f5d6e4;}
+  .endcard h2{font-size:20px;letter-spacing:.14em;margin:0 0 12px;color:#f5d6e4;}
+  .endcard p{color:#c4b0be;font-size:13px;line-height:1.85;margin:0;}
+  .tagline{color:#a8909e!important;letter-spacing:.22em;font-size:11.5px!important;}
+  .modes{display:flex;flex-direction:column;gap:9px;margin:20px 0 6px;}
+  .modes button{
+    background:#1e141c;border:1px solid #4a3040;border-radius:11px;
+    padding:12px 14px;color:#f0e6ed;cursor:pointer;
+    font-family:inherit;font-size:13.5px;text-align:left;transition:.15s;
+  }
+  .modes button:hover{border-color:#d4426e;background:#2e1826;}
+  .modes button b{display:block;margin-bottom:4px;letter-spacing:.08em;}
+  .modes button span{font-size:11.5px;color:#b8a3b1;}
+  .endcard details{margin-top:14px;text-align:left;font-size:12px;color:#b8a3b1;}
+  .endcard summary{cursor:pointer;color:#c9a0b5;letter-spacing:.08em;padding:5px 0;}
+  .endcard details ul{padding-left:16px;line-height:1.85;margin:6px 0 0;}
+  .endcard details li b{color:#e0b8ce;font-weight:600;}
+  button.restart{
+    margin-top:18px;background:#c93e64;border:none;color:#fff;
+    padding:10px 26px;border-radius:9px;font-size:13.5px;
+    letter-spacing:.1em;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  button.restart:hover{background:#e04e74;}
+  button.restart.ghost{
+    background:#251722;border:1px solid #5a3a4c;color:#f0e6ed;
+  }
+  button.restart.ghost:hover{border-color:#d4426e;background:#331b2a;}
+
+  /* ---------- 开始界面顶部按钮 ---------- */
+  .start-topbar{
+    display:flex;justify-content:flex-end;gap:8px;
+    margin-bottom:12px;
+  }
+  .top-btn{
+    background:#251722;border:1px solid #5a3a4c;color:#e0d0da;
+    border-radius:8px;padding:6px 12px;font-size:12px;
+    cursor:pointer;font-family:inherit;transition:.15s;
+    letter-spacing:.04em;white-space:nowrap;
+  }
+  .top-btn:hover{border-color:#d4426e;background:#331b2a;}
+
+  /* ---------- 作者声明 ---------- */
+  .author-info{
+    margin-top:18px;padding-top:14px;
+    border-top:1px solid #33222e;
+    font-size:11.5px;color:#9a8794;line-height:1.75;
+    text-align:center;letter-spacing:.04em;
+  }
+  .author-info b{color:#c9a0b5;font-weight:600;}
+
+  /* ---------- 道具提示弹窗 ---------- */
+  .notice-text{
+    font-size:13px;line-height:1.95;color:#e0d0da;text-align:left;
+    margin:0 0 18px!important;
+  }
+  .items-list{
+    display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+    margin-bottom:6px;
+  }
+  .item-chip{
+    background:linear-gradient(90deg,#2a1120,#1a0e16);
+    border:1px solid #a0365a;border-radius:9px;
+    padding:9px 18px;font-size:13.5px;color:#fff;
+    letter-spacing:.08em;font-weight:600;
+    box-shadow:inset 0 0 20px -8px #d4426e;
+  }
+
+  /* ---------- 结局按钮组 ---------- */
+  .end-buttons{
+    display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+    margin-top:20px;
+  }
+  .end-buttons button.restart{margin-top:0;}
+
+  /* ---------- 记录弹窗 ---------- */
+  .stats-card{max-width:620px;}
+  .stats-note{
+    font-size:11.5px;color:#9a8794;margin-bottom:16px!important;
+  }
+  .stats-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;
+    margin-bottom:8px;
+  }
+  @media (max-width:520px){.stats-grid{grid-template-columns:1fr;}}
+  .stats-block{
+    background:#150f15;border:1px solid #3a2434;
+    border-radius:12px;padding:14px;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+  }
+  .stats-title{
+    font-size:12.5px;letter-spacing:.14em;color:#e0b8ce;font-weight:600;
+  }
+  .stats-lines{display:flex;flex-direction:column;gap:6px;width:100%;}
+  .stats-line{
+    font-size:12px;color:#c4b0be;display:flex;align-items:center;gap:7px;
+  }
+  .stats-line b{
+    color:#f5d6e4;margin-left:auto;font-variant-numeric:tabular-nums;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;}
+  .dot.win{background:#7fd6a2;}
+  .dot.lose{background:#e05a7e;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hud">
+    <div class="hud-item"><span class="lab">理智</span><span class="val" id="hud-sanity">—</span></div>
+    <div class="hud-item"><span class="lab">耐力</span><span class="val" id="hud-hp">—</span></div>
+    <div class="hud-item"><span class="lab">契约</span><span class="val" id="hud-comp">—</span></div>
+    <div class="hud-item"><span class="lab">回合</span><span class="val" id="hud-turn">—</span></div>
+  </header>
+
+  <main class="board">
+    <section>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <aside class="side">
+      <div class="panel-row">
+        <div class="panel">
+          <h3>风险区 <span class="badge" id="risk-sum">0</span></h3>
+          <div class="dice-row" id="risk-dice"><span class="empty">空</span></div>
+        </div>
+        <div class="panel">
+          <h3>待结算</h3>
+          <div class="dice-row" id="pending-dice"><span class="empty">—</span></div>
+        </div>
+      </div>
+      <div class="panel actions" id="actions"></div>
+    </aside>
+  </main>
+
+  <section class="log" id="log"></section>
+</div>
+
+<script>
+/* =========================================================
+   沉溺之下 · 单人骰子游戏
+   ========================================================= */
+
+const INSTR = {
+  1:'戒尺 SP 10 次',
+  2:'数据线 SP 10 次',
+  3:'耳光 10 次',
+  4:'强高 5 次',
+  5:'寸止 3 次',
+  6:'无指令（休息回合）'
+};
+
+const ACTIONS = [
+  { key:'meet',      name:'调教',     desc:'接受主人一次调教，不限次数',      sub:'投 1 颗骰',           cost:0, unlimited:true },
+  { key:'test',      name:'试探',     desc:'在调教的过程中更加信任你的主人',   sub:'投 2 颗骰',           cost:0 },
+  { key:'submit',    name:'交付身心', desc:'将你的身心全都交付于主人',        sub:'投 3 颗骰',           cost:0 },
+  { key:'abstain',   name:'节制',     desc:'控制自己的欲望，不要沉溺其中',    sub:'+1 理智 · 结束回合',   cost:0 },
+  { key:'reexamine', name:'审视关系', desc:'在这段关系中，你真的安全了吗？',   sub:'-2 理智 · 重投风险区', cost:2 },
+  { key:'safeword',  name:'安全词',   desc:'明确你的边界，不要献上所有的一切', sub:'-3 理智 · 清空风险区', cost:3 }
+];
+
+const PIP_LAYOUT = {
+  1:[[2,2]],
+  2:[[1,1],[3,3]],
+  3:[[1,1],[2,2],[3,3]],
+  4:[[1,1],[1,3],[3,1],[3,3]],
+  5:[[1,1],[1,3],[2,2],[3,1],[3,3]],
+  6:[[1,1],[1,3],[2,1],[2,3],[3,1],[3,3]]
+};
+const PIP_PCT = { 1:25, 2:50, 3:75 };
+
+const $ = id => document.getElementById(id);
+const rnd6 = () => 1 + Math.floor(Math.random()*6);
+const rollN = n => Array.from({length:n}, rnd6);
+const sumArr = a => a.reduce((x,y)=>x+y,0);
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+let S = null;
+let cardSeq = 0;
+let placementState = null;
+
+/* ---------------------------------------------------------
+   本地记录（localStorage）
+   --------------------------------------------------------- */
+const STORAGE_KEY = 'chenni_below_stats_v1';
+
+function loadStats() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { easy:{win:0,lose:0}, hard:{win:0,lose:0} };
+    const obj = JSON.parse(raw) || {};
+    return {
+      easy: { win: (obj.easy&&obj.easy.win)||0, lose: (obj.easy&&obj.easy.lose)||0 },
+      hard: { win: (obj.hard&&obj.hard.win)||0, lose: (obj.hard&&obj.hard.lose)||0 }
+    };
+  } catch(e) {
+    return { easy:{win:0,lose:0}, hard:{win:0,lose:0} };
+  }
+}
+
+function saveStats(stats) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch(e) {}
+}
+
+function recordResult(mode, win) {
+  const stats = loadStats();
+  if (!stats[mode]) stats[mode] = {win:0,lose:0};
+  if (win) stats[mode].win++;
+  else stats[mode].lose++;
+  saveStats(stats);
+}
+
+/* ---------------------------------------------------------
+   骰子图标 HTML
+   --------------------------------------------------------- */
+function dieHTML(value, extraClass='') {
+  const pos = PIP_LAYOUT[value] || [];
+  const pips = pos.map(([r,c]) =>
+    `<span class="pip" style="left:${PIP_PCT[c]}%;top:${PIP_PCT[r]}%"></span>`
+  ).join('');
+  return `<div class="die-icon ${extraClass}">${pips}</div>`;
+}
+
+/* ---------------------------------------------------------
+   契约卡生成（2~4 槽，最多 1 个 6 点）
+   --------------------------------------------------------- */
+function makeCard() {
+  const n = 2 + Math.floor(Math.random()*3);
+  const faces = [];
+  for (let i=0;i<n;i++) faces.push(rnd6());
+  let sixCount = faces.filter(f=>f===6).length;
+  if (sixCount > 1) {
+    let kept = false;
+    for (let i=0;i<faces.length;i++) {
+      if (faces[i] === 6) {
+        if (!kept) { kept = true; continue; }
+        faces[i] = 1 + Math.floor(Math.random()*5);
+      }
+    }
+  }
+  return { id: ++cardSeq, slots: faces.map(f => ({ face:f, die:null })) };
+}
+
+/* ---------------------------------------------------------
+   开局
+   --------------------------------------------------------- */
+function startGame(mode) {
+  cardSeq = 0;
+  S = {
+    mode,
+    sanity:    mode==='easy' ? 10 : 6,
+    maxSanity: mode==='easy' ? 10 : 6,
+    hp:        mode==='easy' ? 10 : 5,
+    maxHp:     mode==='easy' ? 10 : 5,
+    completed: 0,
+    turn: 1,
+    maxTurns: 5,
+    maxCards:  mode==='easy' ? 2 : 1,
+    cards: [],
+    risk: [],
+    pending: [],
+    phase: 'idle',
+    usedActions: new Set(),
+    over: false,
+    resultRecorded: false,
+    log: []
+  };
+  const count = mode==='easy' ? 2 : 1;
+  for (let i=0;i<count;i++) S.cards.push(makeCard());
+
+  pushLog(`新的一夜开始了。${mode==='easy'?'【简单模式】':'【困难模式】'}`, 'hi');
+  pushLog('选择你的行动。每一次投骰，都是在钢丝上前进一步。');
+  render();
+}
+
+/* ---------------------------------------------------------
+   日志
+   --------------------------------------------------------- */
+function pushLog(text, cls='') {
+  if (!S) return;
+  S.log.unshift({text,cls});
+  if (S.log.length > 40) S.log.pop();
+}
+
+/* ---------------------------------------------------------
+   渲染
+   --------------------------------------------------------- */
+function render() {
+  if (!S) return;
+  renderHUD();
+  renderCards();
+  renderRisk();
+  renderPending();
+  renderActions();
+  renderLog();
+}
+
+function renderHUD() {
+  const sEl = $('hud-sanity');
+  sEl.textContent = `${S.sanity}/${S.maxSanity}`;
+  sEl.className = 'val' + (S.sanity===0 ? ' low' : (S.sanity>=S.maxSanity ? ' high' : ''));
+  const hEl = $('hud-hp');
+  hEl.textContent = `${S.hp}/${S.maxHp}`;
+  hEl.className = 'val' + (S.hp<=1 ? ' low' : '');
+  $('hud-comp').textContent = `${S.completed}/6`;
+  $('hud-turn').textContent = `${S.turn}/${S.maxTurns}`;
+}
+
+function renderCards() {
+  const el = $('cards');
+  el.innerHTML = '';
+  if (S.cards.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:16px">没有进行中的契约。</div>';
+    return;
+  }
+  S.cards.forEach(c => {
+    const filled = c.slots.filter(s=>s.die!==null).length;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="card-head"><span>契约 · ${String(c.id).padStart(2,'0')}</span><span>${filled} / ${c.slots.length}</span></div>`;
+    c.slots.forEach(s => {
+      const slot = document.createElement('div');
+      slot.className = 'slot' + (s.die!==null ? ' filled' : '');
+      slot.innerHTML = `${dieHTML(s.face,'slot-die'+(s.die!==null?' slot-filled':''))}<div class="slot-inst">${INSTR[s.face]}</div>`;
+      card.appendChild(slot);
+    });
+    el.appendChild(card);
+  });
+}
+
+function renderRisk() {
+  const total = sumArr(S.risk);
+  const el = $('risk-dice');
+  el.innerHTML = S.risk.length===0
+    ? '<span class="empty">空</span>'
+    : S.risk.map(v => dieHTML(v,'risk small')).join('');
+  const badge = $('risk-sum');
+  badge.textContent = total;
+  badge.className = 'badge' + (total>7 ? ' danger' : '');
+}
+
+function renderPending() {
+  const el = $('pending-dice');
+  el.innerHTML = S.pending.length===0
+    ? '<span class="empty">—</span>'
+    : S.pending.map(v => dieHTML(v,'pending small')).join('');
+}
+
+function renderActions() {
+  const el = $('actions');
+  if (S.over) { el.innerHTML=''; return; }
+
+  el.innerHTML = ACTIONS.map(a => {
+    let disabled = false;
+    let tip = '';
+
+    if (S.phase !== 'idle') { disabled = true; tip = '需在回合开始时选择'; }
+    else if (!a.unlimited && S.usedActions.has(a.key)) { disabled = true; tip = '本阶段已使用过'; }
+    else if (a.cost > 0 && S.sanity < a.cost) { disabled = true; tip = '理智不足'; }
+    else if ((a.key==='reexamine' || a.key==='safeword') && S.risk.length===0) { disabled = true; tip = '风险区为空'; }
+
+    let sub = a.sub;
+    if (a.key==='reexamine' && S.risk.length>0) sub = `-2 理智 · 重投 ${S.risk.length} 颗`;
+    if (a.key==='safeword'  && S.risk.length>0) sub = `-3 理智 · 清空 ${S.risk.length} 颗`;
+
+    return `<button class="act" data-act="${a.key}" ${disabled?'disabled':''} title="${tip}">
+      <div class="act-main">
+        <div class="act-name">${a.name}</div>
+        <div class="act-desc">${a.desc}</div>
+      </div>
+      <div class="act-sub">${sub}</div>
+    </button>`;
+  }).join('');
+}
+
+function renderLog() {
+  const el = $('log');
+  const st = el.scrollTop;
+  el.innerHTML = S.log.map(l => `<div class="${l.cls}">${l.text}</div>`).join('');
+  el.scrollTop = st;
+}
+
+/* ---------------------------------------------------------
+   契约槽需求摘要
+   --------------------------------------------------------- */
+function slotSummaryHTML() {
+  if (!S || S.cards.length === 0) return '';
+  return `<div class="slot-summary">
+    ${S.cards.map(c => {
+      const empty = c.slots.filter(s => s.die === null);
+      const dice = empty.length === 0
+        ? '<span class="empty">—</span>'
+        : empty.map(s => dieHTML(s.face, 'hint small')).join('');
+      return `<div class="summary-item">
+        <span class="summary-label">契约 ${String(c.id).padStart(2,'0')}</span>
+        <div class="summary-dice">${dice}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ---------------------------------------------------------
+   弹窗基础
+   --------------------------------------------------------- */
+function openModal(html) {
+  closeModal();
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.id = 'game-modal';
+  ov.innerHTML = `<div class="modal-box">${html}</div>`;
+  document.body.appendChild(ov);
+  return ov;
+}
+function closeModal() {
+  const ov = $('game-modal');
+  if (ov) ov.remove();
+}
+
+/* ---------------------------------------------------------
+   投掷弹窗
+   --------------------------------------------------------- */
+async function startRoll(finalDice) {
+  S.phase = 'rolling';
+  render();
+
+  const ov = openModal(`
+    <h3>投 掷</h3>
+    ${slotSummaryHTML()}
+    <div class="modal-dice" id="modal-dice"></div>
+    <div class="modal-buttons" id="modal-buttons"></div>
+  `);
+  const diceEl = ov.querySelector('#modal-dice');
+
+  const duration = 700 + Math.random()*250;
+  const t0 = Date.now();
+  while (Date.now() - t0 < duration) {
+    const tmp = finalDice.map(()=>rnd6());
+    S.pending = tmp;
+    diceEl.innerHTML = tmp.map(v => dieHTML(v,'pending big')).join('');
+    renderPending();
+    await sleep(65);
+  }
+
+  S.pending = finalDice.slice();
+  S.phase = 'rolled';
+  diceEl.innerHTML = finalDice.map(v => dieHTML(v,'pending big')).join('');
+  renderPending();
+  renderRollButtons();
+}
+
+function renderRollButtons() {
+  const btnEl = document.querySelector('#modal-buttons');
+  if (!btnEl) return;
+  const canIntrospect = S.sanity >= 1;
+  btnEl.innerHTML = `
+    <button class="flow-btn secondary" data-modal="introspect" ${canIntrospect?'':'disabled'}>
+      自省 · 花 1 理智重投所有骰子
+    </button>
+    <button class="flow-btn primary" data-modal="settle">
+      结算 · 选择每颗骰子的去向
+    </button>`;
+}
+
+/* ---------------------------------------------------------
+   放置选择弹窗
+   --------------------------------------------------------- */
+function openPlacementModal() {
+  closeModal();
+  const faces = S.pending.slice();
+
+  placementState = faces.map((face) => {
+    const opts = [];
+    S.cards.forEach(c => {
+      const has = c.slots.some(s => s.die===null && s.face===face);
+      if (has) opts.push({ value:`card-${c.id}`, label:`契约 ${String(c.id).padStart(2,'0')}` });
+    });
+    opts.push({ value:'risk', label:'风险区' });
+    return { face, opts, selected:null };
+  });
+
+  openModal(`
+    <h3>结算 · 选择每颗骰子的去向</h3>
+    ${slotSummaryHTML()}
+    <div class="placement-list" id="placement-list"></div>
+    <div class="modal-buttons">
+      <button class="flow-btn primary" data-modal="confirm-placement" disabled>确认放置</button>
+    </div>
+  `);
+  renderPlacementList();
+}
+
+function renderPlacementList() {
+  const ov = $('game-modal');
+  if (!ov || !placementState) return;
+  const list = ov.querySelector('#placement-list');
+  list.innerHTML = placementState.map((ch,i) => `
+    <div class="placement-row">
+      ${dieHTML(ch.face,'pending')}
+      <div class="placement-opts">
+        ${ch.opts.map(o => `
+          <button class="opt-btn ${ch.selected===o.value?'selected':''}"
+            data-idx="${i}" data-value="${o.value}">${o.label}</button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  const allSelected = placementState.every(ch => ch.selected !== null);
+  const btn = ov.querySelector('[data-modal="confirm-placement"]');
+  if (btn) btn.disabled = !allSelected;
+}
+
+function doConfirmPlacement() {
+  if (!placementState) return;
+  const placedFaces = [];
+  for (const ch of placementState) {
+    if (ch.selected === 'risk') {
+      S.risk.push(ch.face);
+    } else if (ch.selected && ch.selected.startsWith('card-')) {
+      const id = parseInt(ch.selected.slice(5), 10);
+      const card = S.cards.find(c => c.id === id);
+      if (card) {
+        const slot = card.slots.find(s => s.die===null && s.face===ch.face);
+        if (slot) { slot.die = ch.face; placedFaces.push(ch.face); }
+        else S.risk.push(ch.face);
+      } else S.risk.push(ch.face);
+    } else {
+      S.risk.push(ch.face);
+    }
+  }
+  S.pending = [];
+  placementState = null;
+  closeModal();
+  resolveTurn(placedFaces);
+}
+
+/* ---------------------------------------------------------
+   统一回合结算流程
+   --------------------------------------------------------- */
+function resolveTurn(placedFaces) {
+  const total = sumArr(S.risk);
+  if (total > 7) triggerDanger();
+
+  const cardCompleted = checkCompletedCards();
+
+  render();
+  if (S.hp <= 0 || S.completed >= 6) {
+    S.over = true;
+    render();
+    showEnd(S.completed >= 6);
+    return;
+  }
+
+  if (placedFaces && placedFaces.length > 0) {
+    openCommandModal(placedFaces, () => endTurn(cardCompleted));
+  } else {
+    endTurn(cardCompleted);
+  }
+}
+
+/* ---------------------------------------------------------
+   指令弹窗
+   --------------------------------------------------------- */
+function openCommandModal(placedFaces, onDone) {
+  const nonSix = placedFaces.filter(f => f !== 6);
+  const sixCount = placedFaces.filter(f => f === 6).length;
+
+  let lines = [];
+  if (nonSix.length > 0) {
+    const counts = {};
+    nonSix.forEach(f => counts[f] = (counts[f]||0)+1);
+    lines = Object.keys(counts).sort((a,b)=>a-b).map(k => {
+      const f = parseInt(k,10);
+      const n = counts[k];
+      switch (f) {
+        case 1: return `戒尺 SP ${n*10} 次`;
+        case 2: return `数据线 SP ${n*10} 次`;
+        case 3: return `耳光 ${n*10} 次`;
+        case 4: return `强高 ${n*5} 次`;
+        case 5: return `寸止 ${n*3} 次`;
+      }
+      return '';
+    }).filter(Boolean);
+  } else if (sixCount > 0) {
+    lines = ['无指令（休息回合）'];
+  }
+
+  const ov = openModal(`
+    <div class="command-modal">
+      <p class="command-intro">在这段关系中，你的主人对你下达了指令……</p>
+      <div class="command-list">
+        ${lines.map(l => `<div class="command-item">${l}</div>`).join('')}
+      </div>
+      <div class="modal-buttons">
+        <button class="flow-btn primary" data-modal="command-done">我已完成</button>
+      </div>
+    </div>
+  `);
+  ov.querySelector('[data-modal="command-done"]').onclick = () => {
+    closeModal();
+    onDone();
+  };
+}
+
+/* ---------------------------------------------------------
+   行动处理
+   --------------------------------------------------------- */
+async function handleAction(key) {
+  if (!S || S.over || S.phase !== 'idle') return;
+  if (S.usedActions.has(key)) return;
+
+  const a = ACTIONS.find(x => x.key === key);
+  if (!a) return;
+  if (a.cost > 0 && S.sanity < a.cost) return;
+  if ((key==='reexamine' || key==='safeword') && S.risk.length===0) return;
+
+  if (!a.unlimited) S.usedActions.add(key);
+
+  if (key === 'meet') {
+    pushLog('【调教】接受主人一次调教。', 'hi');
+    render();
+    await startRoll(rollN(1));
+  } else if (key === 'test') {
+    pushLog('【试探】在调教的过程中更加信任你的主人。', 'hi');
+    render();
+    await startRoll(rollN(2));
+  } else if (key === 'submit') {
+    pushLog('【交付身心】将你的身心全都交付于主人。', 'hi');
+    render();
+    await startRoll(rollN(3));
+  } else if (key === 'abstain') {
+    if (S.sanity < S.maxSanity) {
+      S.sanity++;
+      pushLog('【节制】控制欲望，理智 +1。本回合结束。', 'good');
+    } else {
+      pushLog('【节制】理智已满，本回合结束。');
+    }
+    render();
+    resolveTurn([]);
+  } else if (key === 'reexamine') {
+    S.sanity -= 2;
+    const n = S.risk.length;
+    S.risk = [];
+    pushLog(`【审视关系】-2 理智，重新投掷风险区的 ${n} 颗骰子。`, 'hi');
+    render();
+    await startRoll(rollN(n));
+  } else if (key === 'safeword') {
+    S.sanity -= 3;
+    const n = S.risk.length;
+    S.risk = [];
+    pushLog(`【安全词】-3 理智，风险区 ${n} 颗骰子被清除。本回合结束。`, 'good');
+    endTurn(false);
+  }
+}
+
+/* ---------------------------------------------------------
+   危险触发
+   --------------------------------------------------------- */
+function triggerDanger() {
+  const total = sumArr(S.risk);
+  S.hp -= 1;
+  pushLog(`⚠ 风险区合计 ${total} > 7 —— 触发危险！`, 'warn');
+  pushLog('未完成的契约卡上所有骰子被清除，风险区清空，耐力 -1。', 'warn');
+
+  for (const c of S.cards)
+    for (const s of c.slots)
+      s.die = null;
+
+  S.risk = [];
+  S.pending = [];
+}
+
+/* ---------------------------------------------------------
+   契约卡完成判定
+   --------------------------------------------------------- */
+function checkCompletedCards() {
+  let anyCompleted = false;
+  let done = S.cards.filter(c => c.slots.every(s => s.die !== null));
+
+  while (done.length > 0) {
+    anyCompleted = true;
+    const c = done[0];
+    S.cards = S.cards.filter(x => x !== c);
+    S.completed++;
+
+    if (S.sanity < S.maxSanity) S.sanity += 1;
+    pushLog(`✦ 契约 ${String(c.id).padStart(2,'0')} 被填满并翻面。理智 +1。`, 'good');
+
+    const d = rnd6();
+    if (d === 6) {
+      if (S.sanity < S.maxSanity) {
+        S.sanity += 1;
+        pushLog('审视骰：<b>6</b> —— 你看得更清楚了。理智 +1。', 'good');
+      } else {
+        pushLog('审视骰：<b>6</b> —— 理智已达上限。');
+      }
+    } else {
+      pushLog(`审视骰：${d} —— 继续前行。`);
+    }
+
+    if (S.completed + S.cards.length < 6 && S.cards.length < S.maxCards) {
+      S.cards.push(makeCard());
+    }
+
+    done = S.cards.filter(c => c.slots.every(s => s.die !== null));
+  }
+  return anyCompleted;
+}
+
+/* ---------------------------------------------------------
+   回合推进 / 阶段转换
+   --------------------------------------------------------- */
+function endTurn(cardCompleted) {
+  if (cardCompleted) {
+    S.turn = 1;
+    S.usedActions.clear();
+    pushLog('契约已翻面，进入下一阶段。', 'hi');
+  } else {
+    S.turn++;
+    if (S.turn > S.maxTurns) {
+      S.turn = 1;
+      S.usedActions.clear();
+
+      let cleared = false;
+      for (const c of S.cards)
+        for (const s of c.slots)
+          if (s.die !== null) { s.die = null; cleared = true; }
+
+      S.sanity = Math.max(0, S.sanity - 1);
+      S.hp -= 1;
+
+      pushLog('本阶段 5 回合已用尽，未完成契约卡上的骰子被清空，理智 -1，耐力 -1。进入下一阶段。', 'warn');
+    }
+  }
+
+  S.pending = [];
+  S.phase = 'idle';
+  render();
+  checkEnd();
+}
+
+/* ---------------------------------------------------------
+   结束判定
+   --------------------------------------------------------- */
+function checkEnd() {
+  if (!S || S.over) return;
+  if (S.completed >= 6) {
+    S.over = true;
+    render();
+    showEnd(true);
+  } else if (S.hp <= 0) {
+    S.over = true;
+    render();
+    showEnd(false);
+  }
+}
+
+/* ---------------------------------------------------------
+   饼图（SVG）
+   --------------------------------------------------------- */
+function donutSVG(win, lose) {
+  const total = win + lose;
+  const cx = 54, cy = 54, r = 42, sw = 13;
+  const C = 2 * Math.PI * r;
+
+  let inner = '';
+  if (total === 0) {
+    inner = `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#33222e" stroke-width="${sw}"/>
+      <text x="${cx}" y="${cy+6}" text-anchor="middle" fill="#8a7a85" font-size="18" font-weight="700">0</text>`;
+  } else {
+    const winLen = C * (win / total);
+    const pct = Math.round(win / total * 100);
+    inner = `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#8a2244" stroke-width="${sw}"/>`;
+    if (winLen > 0.01) {
+      inner += `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#7fd6a2" stroke-width="${sw}"
+        stroke-dasharray="${winLen} ${C - winLen}"
+        transform="rotate(-90 ${cx} ${cy})"/>`;
+    }
+    inner += `
+      <text x="${cx}" y="${cy}" text-anchor="middle" fill="#f5d6e4" font-size="17" font-weight="700">${pct}%</text>
+      <text x="${cx}" y="${cy+16}" text-anchor="middle" fill="#c4b0be" font-size="10">通关率</text>`;
+  }
+  return `<svg width="108" height="108" viewBox="0 0 108 108">${inner}</svg>`;
+}
+
+function statsBlock(label, s) {
+  const total = s.win + s.lose;
+  const winPct = total ? Math.round(s.win / total * 100) : 0;
+  const losePct = total ? 100 - winPct : 0;
+  return `
+    <div class="stats-block">
+      <div class="stats-title">${label}</div>
+      ${donutSVG(s.win, s.lose)}
+      <div class="stats-lines">
+        <div class="stats-line">
+          <span class="dot win"></span><span>通关</span>
+          <b>${s.win} 次 · ${winPct}%</b>
+        </div>
+        <div class="stats-line">
+          <span class="dot lose"></span><span>沉沦</span>
+          <b>${s.lose} 次 · ${losePct}%</b>
+        </div>
+      </div>
+    </div>`;
+}
+
+function showStatsModal() {
+  const stats = loadStats();
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="endcard stats-card">
+      <h2>我的记录</h2>
+      <p class="stats-note">数据为本地浏览器数据，清空站点记录会丢失。</p>
+      <div class="stats-grid">
+        ${statsBlock('简单模式', stats.easy)}
+        ${statsBlock('困难模式', stats.hard)}
+      </div>
+      <button class="restart" id="stats-close">关闭</button>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#stats-close').onclick = () => ov.remove();
+}
+
+/* ---------------------------------------------------------
+   开始界面
+   --------------------------------------------------------- */
+function showStart() {
+  closeModal();
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="endcard">
+      <div class="start-topbar">
+        <button class="top-btn" id="btn-contact">联系作者</button>
+        <button class="top-btn" id="btn-stats">我的记录</button>
+      </div>
+      <h1>沉溺之下</h1>
+      <p class="tagline">六段契约 · 一条钢丝</p>
+      <div class="modes">
+        <button data-mode="easy">
+          <b>简单模式</b>
+          <span>10 理智（上限 10） · 10 耐力 · 场上同时存在 2 张契约卡</span>
+        </button>
+        <button data-mode="hard">
+          <b>困难模式</b>
+          <span>6 理智（上限 6） · 5 耐力 · 场上只存在 1 张契约卡</span>
+        </button>
+      </div>
+      <details>
+        <summary>阅读规则</summary>
+        <ul>
+          <li><b>目标</b>：填满 6 张契约卡。</li>
+          <li><b>骰面</b>：1 戒尺SP / 2 数据线SP / 3 耳光 / 4 强高 / 5 寸止 / 6 无指令（休息回合）</li>
+          <li><b>行动(除调教外，每阶段限1次)</b>：调教(1骰) / 试探(2骰) / 交付身心(3骰) / 节制(+1理智·结束回合) / 审视关系(-2理智·重投风险区) / 安全词(-3理智·清空风险区·结束回合)</li>
+          <li><b>自省</b>：投掷后可选，-1理智，重投所有骰子，不占行动配额。</li>
+          <li><b>结算</b>：点击结算后，逐颗选择骰子放入哪张契约卡或风险区。</li>
+          <li><b>指令</b>：填入契约卡的骰子会触发主人指令；若只填入 6 点，显示“无指令（休息回合）”。</li>
+          <li><b>危险</b>：风险区合计 &gt; 7 时触发，未完成契约卡上的骰子清除、风险区清空、耐力 -1。已填满的卡不受影响。</li>
+          <li><b>翻面</b>：填满一张契约卡 → 翻面 → 理智 +1 → 投审视骰（如果为6，额外 +1 理智）→ 进入下一阶段。</li>
+          <li><b>阶段</b>：每阶段 5 回合。用尽则未完成卡上的骰子被清空、理智 -1、耐力 -1，进入下一阶段。</li>
+          <li><b>结束</b>：填满 6 张契约卡（胜利）或耐力归零（失败）。</li>
+        </ul>
+      </details>
+      <div class="author-info">
+        原作者：<b>不可知</b><br>
+        X账号：<b>@bukezhi1167870</b>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  ov.querySelectorAll('.modes button').forEach(b => {
+    b.onclick = () => {
+      const mode = b.dataset.mode;
+      ov.remove();
+      showItemsNotice(mode);
+    };
+  });
+
+  ov.querySelector('#btn-contact').onclick = () => {
+    window.open('https://x.com/bukezhi1167870', '_blank');
+  };
+  ov.querySelector('#btn-stats').onclick = () => {
+    showStatsModal();
+  };
+}
+
+/* ---------------------------------------------------------
+   道具提示弹窗
+   --------------------------------------------------------- */
+function showItemsNotice(mode) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="endcard">
+      <h2>准备</h2>
+      <p class="notice-text">
+        本游戏推荐在单人独处时游玩，如有条件，可以准备以下道具，并在每一次指令时照做，增加沉浸感。<br>
+        游戏期间如有不适，请立即停止游戏。
+      </p>
+      <div class="items-list">
+        <div class="item-chip">戒尺</div>
+        <div class="item-chip">数据线</div>
+        <div class="item-chip">任意玩具</div>
+      </div>
+      <button class="restart" id="items-ok">我明白了</button>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#items-ok').onclick = () => {
+    ov.remove();
+    startGame(mode);
+  };
+}
+
+/* ---------------------------------------------------------
+   结束界面
+   --------------------------------------------------------- */
+const END_TEXT_WIN = `你终于结束了第六段BDSM的契约关系。<br><br>
+它们像六道悬在暗处的钢丝，你一步步往前，在欲望、信任、服从与自我之间维持平衡。你没有触发危险，没有让任何一段关系滑向失控，也终于安全地结束了所有关系。<br><br>
+但……真的“结束”了吗？<br><br>
+只要你仍会回到这条钢丝上，风险就仍在对面等你。`;
+
+const END_TEXT_LOSE = `你在这段关系中沉溺了。<br><br>
+起初，你以为那只是忍耐；后来，你把它叫作信任、交付、考验，叫作“再坚持一下”。可每一次退让，都在悄悄改写你的边界；每一次服从，都在把判断权交出去。到最后，你不再需要被命令——恐惧、依赖和渴望已经替你回答。<br><br>
+你被困住的地方没有锁链，也没有门。但那个握着权力的人已不再需要用力，你再也无法逃离他的掌控。`;
+
+function showEnd(win) {
+  closeModal();
+
+  if (!S.resultRecorded) {
+    S.resultRecorded = true;
+    recordResult(S.mode, win);
+  }
+
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="endcard">
+      <h2>${win ? '契约终结' : '沉溺其中'}</h2>
+      <p>${win ? END_TEXT_WIN : END_TEXT_LOSE}</p>
+      <div class="end-buttons">
+        <button class="restart" id="btn-restart">重新开始</button>
+        <button class="restart ghost" id="btn-home">返回主页</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  ov.querySelector('#btn-restart').onclick = () => {
+    ov.remove();
+    startGame(S.mode);
+  };
+  ov.querySelector('#btn-home').onclick = () => {
+    ov.remove();
+    showStart();
+  };
+}
+
+/* ---------------------------------------------------------
+   事件绑定
+   --------------------------------------------------------- */
+$('actions').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn || btn.disabled || !S || S.over) return;
+  handleAction(btn.dataset.act);
+});
+
+document.addEventListener('click', e => {
+  const mBtn = e.target.closest('button[data-modal]');
+  if (mBtn && !mBtn.disabled) {
+    const act = mBtn.dataset.modal;
+    if (act === 'introspect') {
+      if (S.phase !== 'rolled' || S.sanity < 1) return;
+      S.sanity -= 1;
+      pushLog('【自省】-1 理智，重新投掷所有骰子。', 'hi');
+      renderHUD();
+      startRoll(rollN(S.pending.length));
+    } else if (act === 'settle') {
+      if (S.phase !== 'rolled') return;
+      openPlacementModal();
+    } else if (act === 'confirm-placement') {
+      doConfirmPlacement();
+    }
+    return;
+  }
+
+  const opt = e.target.closest('.opt-btn');
+  if (opt && placementState) {
+    const idx = parseInt(opt.dataset.idx, 10);
+    const val = opt.dataset.value;
+    if (placementState[idx]) {
+      placementState[idx].selected = val;
+      renderPlacementList();
+    }
+  }
+});
+
+/* 启动 */
+showStart();
+</script>
+</body>
+</html>
