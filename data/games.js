@@ -27,7 +27,7 @@ window.games = [
     name: "沉溺之下",
     url: "games/BDSM Down/index.html",
     image: "images/game-D01.png",
-    tags: ["单人", "调教", "休闲", "骰子", "轻策"],
+    tags: ["单人", "运气", "休闲", "骰子", "轻策"],
     desc: "在一段段BDSM关系的深入下，你能否把控边界？",
     category: "single"
   },
