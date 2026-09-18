@@ -401,6 +401,16 @@
         return game.enemyAttacksOnMe.some(a => a.row === row && a.col === col);
     }
 
+    /* ★ 新增：切换到游戏界面（幂等） */
+    function enterGame() {
+        if (!connectionPanel.classList.contains('hidden')) {
+            connectionPanel.classList.add('hidden');
+        }
+        if (gameContainer.classList.contains('hidden')) {
+            gameContainer.classList.remove('hidden');
+        }
+    }
+
     function startLocalGame() {
         game.phase = 'setup';
         game.planes = [];
@@ -822,7 +832,10 @@
                 updateLabels();
                 setConnStatus('已连接！');
 
-                // ★ 关键修复：立即回发一条 hello，确保对方也能收到我们的存在
+                // ★ 关键修复 1：立即切换面板（之前缺失，导致页面"卡住"）
+                enterGame();
+
+                // ★ 关键修复 2：立即回发一条 hello，确保对方也能收到我们的存在
                 send({ type: 'nickname', name: game.myName });
 
                 if (game.isHost) {
@@ -838,6 +851,7 @@
                 // 防止重传导致重复初始化
                 if (game.phase !== 'idle') return;
                 game.bothNicknamesReady = true;
+                enterGame();
                 startLocalGame();
                 break;
 
