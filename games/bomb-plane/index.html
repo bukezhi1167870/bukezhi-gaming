@@ -560,8 +560,8 @@
 
     /* ====================== 联机（公共 MQTT 中继） ====================== */
     const MQTT_BROKERS = [
-        'wss://broker-cn.emqx.io:8084/mqtt',   // EMQX 中国节点（首选）
-        'wss://broker.emqx.io:8084/mqtt'       // EMQX 国际节点（备用）
+        'wss://broker-cn.emqx.io:8084/mqtt',
+        'wss://broker.emqx.io:8084/mqtt'
     ];
     const TOPIC_PREFIX = 'bdsm_planes/v1/';
 
@@ -585,7 +585,7 @@
     }
 
     function generateRoomCode() { return randomDigits(8); }
-    function formatRoomCode(code) { return code; }   // 8 位纯数字，不加连字符
+    function formatRoomCode(code) { return code; }
 
     function setConnStatus(text, revertAfter) {
         connStatus.textContent = text;
@@ -760,11 +760,9 @@
 
         seenMids.clear();
 
-        // 关闭所有遮罩
         infoOverlay.classList.add('hidden');
         betOverlay.classList.add('hidden');
 
-        // 重置对局状态
         game.phase = 'idle';
         game.myTurn = false;
         game.planes = [];
@@ -781,7 +779,6 @@
         game._byeHandled = false;
         game.hoverPos = null;
 
-        // 显示连接面板
         gameContainer.classList.add('hidden');
         connectionPanel.classList.remove('hidden');
         hostBtn.disabled = false;
@@ -799,7 +796,7 @@
     function handleData(data) {
         if (!data || !data.type) return;
 
-        // ① 消息去重（防止 QoS 1 重传的副本被处理两次）
+        // ① 消息去重（防止 QoS 1 重传）
         if (data._mid) {
             if (seenMids.has(data._mid)) return;
             seenMids.add(data._mid);
@@ -816,13 +813,18 @@
         switch (data.type) {
             case 'nickname':
                 if (!data.name) return;
-                // 已握手后忽略重复 hello，避免反复刷新状态栏
+                // ★ 已握手，忽略重复 hello（避免双方互相回应陷入死循环）
                 if (gotEnemy) return;
+
                 game.enemyName = data.name;
                 gotEnemy = true;
                 stopHello();
                 updateLabels();
                 setConnStatus('已连接！');
+
+                // ★ 关键修复：立即回发一条 hello，确保对方也能收到我们的存在
+                send({ type: 'nickname', name: game.myName });
+
                 if (game.isHost) {
                     if (!game.bothNicknamesReady) {
                         game.bothNicknamesReady = true;
@@ -840,7 +842,6 @@
                 break;
 
             case 'setup_done':
-                // 对方已完成布置，暂无操作
                 break;
 
             case 'bet_submitted':
@@ -1119,7 +1120,6 @@
         if (game.phase === 'setup') undoLastPlane();
     });
 
-    // 关闭页面前主动通知对方
     window.addEventListener('beforeunload', () => {
         if (mqttClient && mqttClient.connected && roomTopic) {
             try {
