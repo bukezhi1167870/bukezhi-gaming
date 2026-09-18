@@ -603,9 +603,6 @@
 (function () {
 'use strict';
 
-/* ============================================================
-   常量与状态
-   ============================================================ */
 const N = 7;
 const TOTAL_BOXES = N * N;
 const TOTAL_LINES = 2 * N * (N + 1);
@@ -857,7 +854,6 @@ function render() {
 
     $('board').classList.toggle('interactive', playing && S.turn === S.myId);
 
-    /* 状态文本：notice 优先 */
     const st = $('statusText');
     if (S.notice) {
         st.textContent = S.notice;
@@ -1061,13 +1057,19 @@ function onData(msg) {
     switch (msg.type) {
         case 'nickname':
             if (!msg.name) return;
-            if (gotEnemy) return;             // 已握手，忽略重复 hello
+            // ★ 已握手，忽略重复 hello（避免双方互相回应陷入死循环）
+            if (gotEnemy) return;
+
             S.enemyName = msg.name;
             gotEnemy = true;
             stopHello();
             enterGame();
             setConnStatus('已连接！', 1500);
             render();
+
+            // ★ 关键修复：立即回发一条 hello，确保对方也能收到我们的存在
+            send({ type: 'nickname', name: S.myName });
+
             if (S.isHost) {
                 if (!S.started) {
                     S.started = true;
@@ -1336,7 +1338,6 @@ $('board').addEventListener('contextmenu', function (e) {
     e.preventDefault();
 });
 
-/* 关闭页面前主动通知对方 */
 window.addEventListener('beforeunload', function () {
     if (mqttClient && mqttClient.connected && roomTopic) {
         try {
