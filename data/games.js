@@ -27,8 +27,16 @@ window.games = [
     name: "沉溺之下",
     url: "games/BDSM Down/index.html",
     image: "images/game-D01.png",
-    tags: ["单人", "运气", "休闲", "骰子", "轻策"],
+    tags: ["赌注", "双人", "对战", "主贝", "双"],
     desc: "在一段段BDSM关系的深入下，你能否把控边界？",
+    category: "single"
+  },
+  {
+    name: "出逃日记",
+    url: "games/Escape Diary/index.html",
+    image: "images/game-D02.png",
+    tags: ["单人", "对抗", "非对称追逐", "资源管理", "路线规划"],
+    desc: "搜证、反抗、在被‘主人’彻底掌控前，逃出这扇门。",
     category: "single"
   },
 ];
