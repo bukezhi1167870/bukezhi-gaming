@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>出逃日记 · Escape Diary</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#07050a;--panel:#140f16;--panel2:#1d1620;--panel3:#251c28;
+  --border:#312430;--border2:#453045;
+  --red:#a32a2a;--red2:#d63c3c;--red3:#ff6b5a;
+  --green:#4caf7d;--green2:#6ee7a8;
+  --gold:#d4a04c;--purple:#9b6bb5;--purple2:#c79ce0;
+  --text:#ddd3d9;--dim:#8d7f88;--dim2:#5c4f58;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(163,42,42,.16), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 100%, rgba(120,50,130,.14), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 90%, rgba(50,20,60,.16), transparent 60%);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+#app{position:relative;z-index:2}
+
+.screen{min-height:100vh;padding:20px 16px 40px;display:flex;flex-direction:column;align-items:center;
+  animation:screenIn .5s cubic-bezier(.22,1,.36,1);}
+.screen.hidden{display:none}
+@keyframes screenIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+#screen-title{justify-content:center;text-align:center}
+.title-main{font-size:clamp(40px,12vw,72px);font-weight:900;letter-spacing:12px;color:#fff;
+  text-shadow:0 0 12px rgba(214,60,60,.9),0 0 44px rgba(214,60,60,.5),0 0 90px rgba(163,42,42,.4),
+    0 3px 0 #4a0f1a,0 6px 22px rgba(0,0,0,.9);
+  animation:fadeUp .9s .2s both,flicker 7s 2s infinite;margin-left:12px;}
+@keyframes flicker{0%,88%,92%,100%{opacity:1}90%{opacity:.55}91%{opacity:.9}}
+.title-sub{font-size:12px;letter-spacing:11px;color:var(--red2);margin-top:12px;opacity:.75;
+  animation:fadeUp .9s .35s both;}
+.title-tag{font-size:12px;letter-spacing:4px;color:var(--purple2);margin-top:22px;opacity:.75;
+  animation:fadeUp .9s .45s both;}
+.title-quote{font-size:13px;line-height:2.2;color:var(--dim);margin:24px 0 6px;letter-spacing:.6px;
+  max-width:420px;font-style:italic;animation:fadeUp .9s .5s both;}
+.title-quote b{color:var(--red3);font-weight:600;font-style:normal}
+.title-quote2{font-size:12.5px;line-height:2.1;color:var(--dim2);margin-bottom:34px;letter-spacing:.5px;
+  max-width:420px;animation:fadeUp .9s .58s both;}
+.title-btns{display:flex;flex-direction:column;gap:12px;width:100%;max-width:250px;
+  animation:fadeUp .9s .7s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+button{font-family:inherit;cursor:pointer;border:none;outline:none;
+  transition:all .18s cubic-bezier(.22,1,.36,1);}
+button:active:not(:disabled){transform:scale(.97)}
+.btn-primary{padding:15px 26px;font-size:14px;letter-spacing:5px;font-weight:700;
+  background:linear-gradient(160deg,#7a1e2a,#3d0d18);color:#ffe3e6;border-radius:11px;
+  border:1px solid #a03340;
+  box-shadow:0 5px 22px rgba(163,42,42,.35),inset 0 1px 0 rgba(255,180,190,.2);}
+.btn-primary:hover:not(:disabled){background:linear-gradient(160deg,#9a2840,#4e1020);
+  box-shadow:0 7px 30px rgba(214,60,60,.5),inset 0 1px 0 rgba(255,180,190,.28);transform:translateY(-2px);}
+.btn-ghost{padding:13px 26px;font-size:13px;letter-spacing:4px;
+  background:rgba(255,255,255,.03);color:var(--dim);
+  border:1px solid var(--border2);border-radius:11px;}
+.btn-ghost:hover{color:var(--text);border-color:#5a4250;background:rgba(255,255,255,.06)}
+.btn-primary:disabled,.btn-ghost:disabled{opacity:.3;cursor:not-allowed;transform:none}
+
+#screen-profile h1{font-size:32px;letter-spacing:8px;margin-bottom:26px;text-align:center;
+  text-shadow:0 0 30px rgba(214,60,60,.4);}
+.profile-tabs{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;width:100%}
+.profile-tabs .btn-ghost.on{border-color:var(--red2);color:#fff;background:rgba(214,60,60,.1)}
+#profile-body{width:100%;max-width:820px;margin-top:22px}
+
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;width:100%}
+.ach-card{background:var(--panel);border:1.5px solid var(--border);border-radius:13px;
+  padding:16px 14px;cursor:pointer;text-align:center;transition:all .2s cubic-bezier(.22,1,.36,1);
+  position:relative;overflow:hidden;}
+.ach-card:hover{transform:translateY(-3px);border-color:var(--border2);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.ach-card .ach-name{font-size:13px;font-weight:700;letter-spacing:1px;color:var(--dim2);}
+.ach-card .ach-mark{font-size:22px;margin-bottom:8px;opacity:.3;filter:grayscale(1)}
+.ach-card.unlocked{border-color:rgba(212,160,76,.5);
+  background:linear-gradient(160deg,#1c1510,#150f0d);
+  box-shadow:0 0 0 1px rgba(212,160,76,.18),0 6px 22px rgba(212,160,76,.15);}
+.ach-card.unlocked .ach-name{color:var(--gold);text-shadow:0 0 16px rgba(212,160,76,.5)}
+.ach-card.unlocked .ach-mark{opacity:1;filter:none}
+
+.stat-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:500px;margin:0 auto}
+.stat-item{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
+.stat-item span{font-size:13px;letter-spacing:1.5px;color:var(--dim)}
+.stat-item b{font-size:22px;color:var(--text);font-weight:800}
+.stat-item.gold b{color:var(--gold)}
+.stat-item.green b{color:var(--green2)}
+.stat-item.red b{color:var(--red3)}
+.stat-item.purple b{color:var(--purple2)}
+
+#screen-select{max-width:900px;margin:0 auto;width:100%}
+.sec-title{font-size:12px;letter-spacing:6px;color:var(--dim);font-weight:400;
+  margin:26px 0 14px;display:flex;align-items:center;gap:12px;width:100%;}
+.sec-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+.card-row{display:grid;gap:11px;width:100%}
+.card-row.sv{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.card-row.kl{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.sel-card{background:var(--panel);border:1.5px solid var(--border);border-radius:14px;
+  padding:16px 15px;cursor:pointer;position:relative;overflow:hidden;
+  transition:all .22s cubic-bezier(.22,1,.36,1);}
+.sel-card::before{content:'';position:absolute;inset:0;opacity:0;transition:.25s;
+  background:radial-gradient(circle at 50% 0%,rgba(214,60,60,.16),transparent 70%);}
+.sel-card:hover{border-color:var(--border2);transform:translateY(-3px);box-shadow:0 8px 26px rgba(0,0,0,.5)}
+.sel-card.on{border-color:var(--red2);background:#1d1218;
+  box-shadow:0 0 0 1px rgba(214,60,60,.3),0 8px 34px rgba(163,42,42,.28);}
+.sel-card.on::before{opacity:1}
+.sel-card.kl.on{border-color:var(--purple);
+  box-shadow:0 0 0 1px rgba(155,107,181,.3),0 8px 34px rgba(120,70,150,.28);}
+.sel-card.kl.on::before{background:radial-gradient(circle at 50% 0%,rgba(155,107,181,.2),transparent 70%)}
+.sel-icon{font-size:30px;margin-bottom:9px;filter:drop-shadow(0 3px 10px rgba(0,0,0,.7));position:relative}
+.sel-name{font-size:13.5px;font-weight:700;letter-spacing:.5px;margin-bottom:5px;position:relative}
+.sel-desc{font-size:11.5px;color:var(--dim);line-height:1.65;margin-bottom:10px;position:relative}
+.sel-ability{font-size:11px;line-height:1.7;color:var(--green2);
+  background:rgba(76,175,125,.07);border:1px solid rgba(76,175,125,.18);border-radius:8px;
+  padding:8px 10px;position:relative;}
+.sel-card.kl .sel-ability{color:#d9a8f0;background:rgba(155,107,181,.07);border-color:rgba(155,107,181,.2);}
+.sel-ability b{color:#fff;font-weight:600}
+.select-footer{display:flex;gap:12px;margin-top:34px;width:100%;justify-content:center;flex-wrap:wrap}
+.select-footer button{min-width:150px}
+
+#screen-game{max-width:920px;margin:0 auto;width:100%;gap:11px}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:0 3px;width:100%;gap:12px}
+.topbar h1{font-size:15px;letter-spacing:6px;color:var(--red2);font-weight:800;
+  text-shadow:0 0 20px rgba(214,60,60,.5)}
+.turn-pill{font-size:11px;letter-spacing:2px;color:var(--dim);background:var(--panel);
+  border:1px solid var(--border);padding:6px 13px;border-radius:20px;white-space:nowrap;}
+
+.event-bar{width:100%;background:linear-gradient(90deg,rgba(212,160,76,.1),rgba(212,160,76,.02));
+  border:1px solid rgba(212,160,76,.25);border-radius:11px;padding:9px 14px;font-size:12px;
+  letter-spacing:.4px;color:#e0c48a;display:flex;align-items:center;gap:9px;min-height:38px;
+  animation:eventIn .5s cubic-bezier(.22,1,.36,1);}
+@keyframes eventIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.event-bar .ev-icon{font-size:16px}
+.event-bar .ev-name{font-weight:700;color:var(--gold)}
+
+.hud{display:grid;grid-template-columns:1fr 1fr;gap:11px;width:100%}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 15px;
+  position:relative;overflow:hidden;}
+.panel.k{border-color:rgba(214,60,60,.28);background:linear-gradient(150deg,#1a1016,#130d13)}
+.panel.p{border-color:rgba(76,175,125,.24);background:linear-gradient(150deg,#0f1a16,#131015)}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;gap:8px}
+.panel-name{font-size:13px;font-weight:700;letter-spacing:1px}
+.panel.k .panel-name{color:var(--red3)}
+.panel.p .panel-name{color:var(--green2)}
+.panel-tag{font-size:10px;letter-spacing:1.5px;color:var(--dim2);text-transform:uppercase}
+.bar{height:11px;background:#07050a;border-radius:6px;overflow:hidden;margin-bottom:9px;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9);position:relative;border:1px solid rgba(255,255,255,.04)}
+.bar-fill{height:100%;border-radius:5px;transition:width .45s cubic-bezier(.22,1,.36,1);position:relative}
+.bar-fill::after{content:'';position:absolute;inset:0;border-radius:5px;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 55%)}
+.bar-fill.kf{background:linear-gradient(90deg,#5c1018,#d63c3c,#ff8a72)}
+.bar-fill.pf{background:linear-gradient(90deg,#155f38,#4caf7d,#8ce8b4)}
+.stat-grid{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--dim)}
+.stat-grid b{color:var(--text);font-weight:700;font-size:12.5px}
+.stat-grid .danger b{color:var(--red3)}
+.stat-grid .good b{color:var(--green2)}
+.stat-grid .purple b{color:var(--purple2)}
+
+.map{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;width:100%}
+.loc{position:relative;background:var(--panel);border:1.5px solid var(--border);border-radius:13px;
+  padding:10px 11px;min-height:112px;display:flex;flex-direction:column;justify-content:space-between;
+  transition:all .2s cubic-bezier(.22,1,.36,1);overflow:hidden;}
+.loc::before{content:'';position:absolute;inset:0;opacity:0;transition:.25s;pointer-events:none;
+  background:radial-gradient(circle at 50% 100%,rgba(76,175,125,.12),transparent 70%);}
+.loc.reachable{border-color:#6b4a55;cursor:pointer}
+.loc.reachable:hover{background:var(--panel2);border-color:var(--red2);transform:translateY(-3px);
+  box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 0 1px rgba(214,60,60,.2);}
+.loc.reachable:hover::before{opacity:0}
+.loc.here{border-color:var(--green);background:#101a15;
+  box-shadow:0 0 0 1px rgba(76,175,125,.28),inset 0 0 40px rgba(76,175,125,.06);}
+.loc.here::before{opacity:1}
+.loc.killer-here{border-color:var(--red2);background:linear-gradient(160deg,#20100f,#160d10);
+  animation:kPulse 1.7s ease-in-out infinite;}
+@keyframes kPulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(214,60,60,.3),0 0 16px rgba(214,60,60,.25),inset 0 0 40px rgba(214,60,60,.1)}
+  50%{box-shadow:0 0 0 1px rgba(214,60,60,.6),0 0 30px rgba(214,60,60,.5),inset 0 0 55px rgba(214,60,60,.18)}}
+.loc.here.killer-here{border-color:var(--red2);animation:kPulse 1.1s ease-in-out infinite;}
+.loc-head{display:flex;align-items:center;gap:6px;position:relative;z-index:1}
+.loc-icon{font-size:16px;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.8))}
+.loc-name{font-size:11.5px;letter-spacing:.6px;color:#c5b8c0;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loc-mid{display:flex;gap:9px;font-size:10.5px;color:var(--dim);position:relative;z-index:1;
+  flex-wrap:wrap;min-height:14px}
+.loc-mid span{display:flex;align-items:center;gap:3px;opacity:.85}
+.loc-actors{display:flex;gap:4px;align-items:flex-end;min-height:24px;position:relative;z-index:1}
+.actor{font-size:21px;line-height:1;filter:drop-shadow(0 0 8px rgba(0,0,0,.95))}
+.actor.killer{animation:kB 1.15s infinite ease-in-out}
+@keyframes kB{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.06)}}
+.actor.me{animation:meB 2.4s infinite ease-in-out}
+@keyframes meB{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;width:100%}
+.act-btn{position:relative;padding:13px 6px 11px;border-radius:12px;background:var(--panel2);
+  border:1.5px solid var(--border);color:var(--text);font-size:12.5px;letter-spacing:1px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;overflow:hidden;}
+.act-btn .a-icon{font-size:18px;line-height:1}
+.act-btn .a-name{font-weight:600}
+.act-btn .a-cost{position:absolute;top:5px;right:7px;font-size:9px;letter-spacing:.5px;
+  color:var(--dim2);background:rgba(0,0,0,.35);padding:1px 5px;border-radius:6px;}
+.act-btn:hover:not(:disabled){background:var(--panel3);transform:translateY(-2px);
+  box-shadow:0 6px 20px rgba(0,0,0,.5);}
+.act-btn:disabled{opacity:.26;cursor:not-allowed;transform:none}
+#btn-attack:hover:not(:disabled){border-color:var(--red2);color:#ffb8ae;
+  box-shadow:0 6px 24px rgba(214,60,60,.3)}
+#btn-search:hover:not(:disabled){border-color:var(--gold);color:#f0d29a}
+#btn-evidence:hover:not(:disabled){border-color:var(--green);color:#a8f0cd}
+#btn-end{background:linear-gradient(160deg,#2a1620,#1e1018);border-color:#5a2a3a}
+#btn-end:hover:not(:disabled){border-color:var(--red2);color:#ffb8ae;
+  box-shadow:0 6px 24px rgba(214,60,60,.28)}
+
+.bag-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:11px 14px;width:100%}
+.bag-title{font-size:10.5px;letter-spacing:3px;color:var(--dim2);margin-bottom:9px;
+  display:flex;justify-content:space-between;align-items:center}
+.bag-title .cnt{color:var(--dim);letter-spacing:1px}
+.bag-items{display:flex;flex-wrap:wrap;gap:7px;min-height:32px}
+.item{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:6px 10px;
+  border-radius:9px;background:#1a141a;border:1.5px solid var(--border);
+  transition:all .18s cubic-bezier(.22,1,.36,1);position:relative;}
+.item-icon{font-size:14px;line-height:1}
+.item-tag{font-size:9.5px;color:var(--dim2);letter-spacing:.3px;background:rgba(0,0,0,.35);
+  padding:1px 5px;border-radius:5px}
+.item.usable{cursor:pointer;border-color:rgba(76,175,125,.4);background:#131d18}
+.item.usable:hover{background:#1a2820;border-color:var(--green);
+  box-shadow:0 0 16px rgba(76,175,125,.28);transform:translateY(-2px)}
+.item.usable .item-tag{color:var(--green2);background:rgba(76,175,125,.12)}
+.item.bomb-usable{cursor:pointer;border-color:rgba(214,60,60,.45);background:#1d1214}
+.item.bomb-usable:hover{border-color:var(--red2);box-shadow:0 0 16px rgba(214,60,60,.3);transform:translateY(-2px)}
+.item.bomb-usable .item-tag{color:#ffb8ae;background:rgba(214,60,60,.12)}
+.empty-inv{font-size:11.5px;color:var(--dim2);font-style:italic;padding:6px 0}
+
+.log{background:#0a070b;border:1px solid #221a20;border-radius:14px;padding:12px 15px;
+  height:148px;overflow-y:auto;width:100%;font-size:12px;line-height:1.85;letter-spacing:.2px;
+  scrollbar-width:thin;scrollbar-color:#3a2c34 transparent;}
+.log::-webkit-scrollbar{width:6px}
+.log::-webkit-scrollbar-thumb{background:#3a2c34;border-radius:3px}
+.log-line{color:#9b8f97;animation:logIn .3s ease}
+@keyframes logIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+.log-line.good{color:var(--green2)}
+.log-line.bad{color:#f07a68}
+.log-line.warn{color:var(--gold)}
+.log-line.sep{color:#5c4a56;text-align:center;margin:5px 0;letter-spacing:6px;font-size:10px}
+.log-line.big{color:#fff;font-weight:700}
+
+.overlay{position:fixed;inset:0;background:rgba(4,2,5,.88);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;
+  animation:fadeIn .3s ease;}
+.overlay.hidden{display:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.ov-box{background:linear-gradient(160deg,#181218,#100c11);border:1px solid var(--border2);
+  border-radius:18px;padding:30px 32px;max-width:460px;width:100%;
+  box-shadow:0 24px 70px rgba(0,0,0,.85);animation:popIn .4s cubic-bezier(.22,1.2,.36,1);
+  max-height:86vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#3a2c34 transparent;}
+.ov-box::-webkit-scrollbar{width:6px}
+.ov-box::-webkit-scrollbar-thumb{background:#3a2c34;border-radius:3px}
+@keyframes popIn{from{opacity:0;transform:scale(.92) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.ov-box h2{font-size:20px;letter-spacing:4px;margin-bottom:16px;text-align:center}
+.ov-box.win h2{color:var(--green2);text-shadow:0 0 30px rgba(76,175,125,.5)}
+.ov-box.lose h2{color:var(--red2);text-shadow:0 0 30px rgba(214,60,60,.5)}
+.ov-box.gold h2{color:var(--gold);text-shadow:0 0 30px rgba(212,160,76,.5)}
+
+.rules h2{color:var(--red3);text-shadow:0 0 26px rgba(214,60,60,.4)}
+.rule-sec{margin-bottom:20px}
+.rule-sec:last-child{margin-bottom:0}
+.rule-h{font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:9px;
+  display:flex;align-items:center;gap:8px;}
+.rule-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(212,160,76,.35),transparent)}
+.rule-p{font-size:12.5px;line-height:2;color:#a89ba3}
+.rule-p b{color:var(--text);font-weight:600}
+.rule-p .hl{color:var(--green2)}
+.rule-p .hr{color:var(--red3)}
+.rule-p .hp{color:var(--purple2)}
+.rule-list{list-style:none;font-size:12.5px;line-height:2.05;color:#a89ba3}
+.rule-list li{padding-left:18px;position:relative}
+.rule-list li::before{content:'▸';position:absolute;left:2px;color:var(--red2);font-size:10px}
+.rule-list b{color:var(--text);font-weight:600}
+
+#dice-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.85);
+  z-index:300;pointer-events:none;opacity:0;transition:all .28s cubic-bezier(.22,1.2,.36,1);
+  background:rgba(14,10,14,.96);border:1px solid var(--border2);border-radius:16px;
+  padding:20px 26px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.9);min-width:190px;}
+#dice-popup.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.dp-title{font-size:12px;letter-spacing:3px;color:var(--dim);margin-bottom:13px}
+.dp-dice{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:13px}
+.die{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:800;background:#241c24;border:1.5px solid var(--border2);
+  color:var(--dim);animation:dieIn .35s cubic-bezier(.22,1.4,.36,1) backwards;}
+@keyframes dieIn{from{opacity:0;transform:rotate(-25deg) scale(.5)}to{opacity:1;transform:none}}
+.die.hit{background:linear-gradient(160deg,#1c4a32,#123022);border-color:var(--green);
+  color:var(--green2);box-shadow:0 0 18px rgba(76,175,125,.4)}
+.dp-result{font-size:13px;letter-spacing:2px;font-weight:700}
+.dp-result.good{color:var(--green2)}
+.dp-result.bad{color:var(--red3)}
+.dp-result.miss{color:var(--dim)}
+
+.ov-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0 24px}
+.ov-stat{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:11px;
+  padding:13px 10px;text-align:center}
+.ov-stat .v{font-size:22px;font-weight:800;color:var(--text);line-height:1.2}
+.ov-stat .l{font-size:10.5px;letter-spacing:1.5px;color:var(--dim2);margin-top:4px}
+.ov-stat.g .v{color:var(--green2)}
+.ov-stat.r .v{color:var(--red3)}
+.ov-stat.y .v{color:var(--gold)}
+.ov-stat.p .v{color:var(--purple2)}
+.ov-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.ov-btns button{min-width:130px}
+
+@keyframes shake{0%,100%{transform:translate(0,0)}15%{transform:translate(-7px,3px)}
+  30%{transform:translate(6px,-4px)}45%{transform:translate(-5px,-3px)}
+  60%{transform:translate(5px,4px)}75%{transform:translate(-3px,2px)}90%{transform:translate(2px,-1px)}}
+body.shake #app{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
+#flash{position:fixed;inset:0;pointer-events:none;z-index:150;
+  background:radial-gradient(circle at 50% 50%,rgba(214,60,60,0),rgba(214,60,60,.35));
+  opacity:0;transition:opacity .12s;}
+#flash.on{opacity:1}
+
+@media(max-width:620px){
+  .screen{padding:14px 11px 30px}
+  .hud{grid-template-columns:1fr}
+  .map{gap:7px}
+  .loc{min-height:94px;padding:8px 8px}
+  .loc-icon{font-size:14px}
+  .loc-name{font-size:10px;letter-spacing:0}
+  .actor{font-size:18px}
+  .actions{grid-template-columns:repeat(2,1fr);gap:7px}
+  .act-btn{padding:11px 5px 9px;font-size:11.5px}
+  .title-main{letter-spacing:7px;margin-left:7px}
+  .ov-box{padding:24px 20px}
+  .ov-stats{grid-template-columns:1fr 1fr}
+  .card-row.sv,.card-row.kl{grid-template-columns:1fr 1fr;gap:8px}
+  .sel-card{padding:12px 11px}
+  .sel-icon{font-size:24px;margin-bottom:6px}
+  .sel-name{font-size:12px}
+  .sel-desc{display:none}
+  .sel-ability{font-size:10px;padding:6px 8px}
+  .ach-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:400px){
+  .card-row.sv,.card-row.kl{grid-template-columns:1fr}
+  .sel-desc{display:block;font-size:10.5px}
+}
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<div id="app">
+
+  <div id="screen-title" class="screen">
+    <h1 class="title-main">出逃日记</h1>
+    <div class="title-sub">ESCAPE DIARY</div>
+    <div class="title-tag">—— BDSM 小 圈 游 戏 ——</div>
+    <p class="title-quote">夜幕降临……</p>
+    <p class="title-quote2">
+      你发现身边的那个「主人」并非如你所幻想的一般完美无瑕。<br>
+      在被他彻底掌控前，<b style="color:var(--red3)">收集证据、反抗并逃离吧</b>。
+    </p>
+    <div class="title-btns">
+      <button class="btn-primary" id="to-select">开 始 游 戏</button>
+      <button class="btn-ghost" id="to-profile">我 的 资 料</button>
+      <button class="btn-ghost" id="show-rules">游 戏 说 明</button>
+    </div>
+  </div>
+
+  <div id="screen-profile" class="screen hidden">
+    <h1>我 的 资 料</h1>
+    <div class="profile-tabs">
+      <button class="btn-ghost" id="tab-ach">成 就</button>
+      <button class="btn-ghost" id="tab-stats">数 据</button>
+      <button class="btn-ghost" id="tab-back">返 回</button>
+    </div>
+    <div id="profile-body"></div>
+  </div>
+
+  <div id="screen-select" class="screen hidden">
+    <div class="sec-title">选 择 你 的 角 色</div>
+    <div class="card-row sv" id="survivor-cards"></div>
+
+    <div class="sec-title">选 择 对 方 身 份</div>
+    <div class="card-row kl" id="killer-cards"></div>
+
+    <div class="sec-title">难 度 选 择</div>
+    <div class="card-row sv" id="difficulty-cards"></div>
+
+    <div class="select-footer">
+      <button class="btn-ghost" id="back-title">返 回</button>
+      <button class="btn-primary" id="start-game">踏 入 夜 色</button>
+    </div>
+  </div>
+
+  <div id="screen-game" class="screen hidden">
+    <div class="topbar">
+      <h1>出逃日记</h1>
+      <div class="turn-pill" id="turn-pill">第 1 回合</div>
+    </div>
+
+    <div class="event-bar" id="event-bar">
+      <span class="ev-icon">🌙</span>
+      <span><span class="ev-name">夜幕降临</span> — 保持安静，收集证据，找机会逃出去。</span>
+    </div>
+
+    <div class="hud">
+      <div class="panel k">
+        <div class="panel-head">
+          <div class="panel-name" id="k-name">⛓️ 上位</div>
+          <div class="panel-tag" id="k-tag">HUNTER</div>
+        </div>
+        <div class="bar"><div class="bar-fill kf" id="k-hp-bar" style="width:100%"></div></div>
+        <div class="stat-grid" id="k-stats"></div>
+      </div>
+      <div class="panel p">
+        <div class="panel-head">
+          <div class="panel-name" id="p-name">🖤 你</div>
+          <div class="panel-tag" id="p-tag">SURVIVOR</div>
+        </div>
+        <div class="bar"><div class="bar-fill pf" id="p-hp-bar" style="width:100%"></div></div>
+        <div class="stat-grid" id="p-stats"></div>
+      </div>
+    </div>
+
+    <div class="map" id="map"></div>
+
+    <div class="actions">
+      <button class="act-btn" id="btn-search">
+        <span class="a-cost">1AP</span>
+        <span class="a-icon">🔦</span>
+        <span class="a-name">翻 找</span>
+      </button>
+      <button class="act-btn" id="btn-evidence">
+        <span class="a-cost">1AP</span>
+        <span class="a-icon">📄</span>
+        <span class="a-name">搜 证</span>
+      </button>
+      <button class="act-btn" id="btn-attack">
+        <span class="a-cost">1AP</span>
+        <span class="a-icon">⛓️</span>
+        <span class="a-name">反 抗</span>
+      </button>
+      <button class="act-btn" id="btn-end">
+        <span class="a-icon">🌙</span>
+        <span class="a-name">结束回合</span>
+      </button>
+    </div>
+
+    <div class="bag-wrap">
+      <div class="bag-title">
+        <span>随 身 物 品</span>
+        <span class="cnt" id="bag-cnt"></span>
+      </div>
+      <div class="bag-items" id="bag"></div>
+    </div>
+
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<div id="dice-popup"></div>
+
+<div class="overlay hidden" id="ach-overlay">
+  <div class="ov-box gold">
+    <h2 id="ach-modal-name"></h2>
+    <p class="rule-p" id="ach-modal-cond" style="text-align:center"></p>
+    <div class="ov-btns" style="margin-top:24px">
+      <button class="btn-primary" id="ach-modal-close">关 闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="rules-overlay">
+  <div class="ov-box rules">
+    <h2>游 戏 说 明</h2>
+
+    <div class="rule-sec">
+      <div class="rule-h">🎯 目标</div>
+      <p class="rule-p">
+        你曾经以为这是你想要的关系。现在你知道了真相——<br>
+        在被「他」彻底掌控之前，<span class="hl">收集 8 份证据，打破他的控制，曝光他的真面目</span>。
+      </p>
+    </div>
+
+    <div class="rule-sec">
+      <div class="rule-h">🔄 回合流程</div>
+      <ul class="rule-list">
+        <li><b>事件阶段</b>：每回合开始抽取一张事件牌，可能有利也可能致命。</li>
+        <li><b>行动阶段</b>：消耗行动点（AP）执行翻找、搜证、反抗或移动到相邻房间。</li>
+        <li><b>上位阶段</b>：点击「结束回合」后，他会移动、销毁证据或直接找上你。</li>
+      </ul>
+    </div>
+
+    <div class="rule-sec">
+      <div class="rule-h">📄 证据</div>
+      <p class="rule-p">
+        每局共 <b>8 份证据</b>，随机分布在除后门外的房间，每房最多 2 份。<br>
+        <span class="hl">搜证</span>：消耗 1 AP，掷 2 骰，成功则带走一份证据。<br>
+        对方每到达一个房间后，会掷骰判定：<span class="hr">4~6 时销毁该房间一份未被拿走的证据</span>。
+      </p>
+    </div>
+
+    <div class="rule-sec">
+      <div class="rule-h">🎲 骰子判定</div>
+      <p class="rule-p">
+        每次掷出若干颗六面骰，<b>4 / 5 / 6 视为成功</b>。<br>
+        例：<span style="color:var(--green2)">4</span> 2 <span style="color:var(--green2)">6</span> = 2 次成功。
+      </p>
+    </div>
+
+    <div class="rule-sec">
+      <div class="rule-h">⛓️ 行动详解</div>
+      <ul class="rule-list">
+        <li><b>翻找</b>：在当前房间搜寻一件随机物品，可能是反抗工具或恢复用品。</li>
+        <li><b>搜证</b>：消耗 1 AP，掷 2 骰，成功带走一份证据。</li>
+        <li><b>反抗</b>：仅当与上位处于同一房间时可用。伤害 = 工具骰的成功数，空手为 1 骰。</li>
+        <li><b>移动</b>：点击地图上高亮的相邻房间即可移动，消耗 1 AP。</li>
+      </ul>
+    </div>
+
+    <div class="rule-sec">
+      <div class="rule-h">🩸 上位的威胁</div>
+      <p class="rule-p">
+        他每回合会以 <span class="hr">65% 概率直扑向你</span>，或 <span class="hp">35% 概率前去销毁最近的证据</span>。<br>
+        掌控欲每 3 回合 +1，达到 4 后每回合可以移动 2 格。<br>
+        他每到达一个房间，会销毁一份该房间未被拿走的证据（4~6）。
+      </p>
+    </div>
+
+    <div class="rule-sec">
+      <div class="rule-h">🏁 结局</div>
+      <p class="rule-p">
+        当对方精力清空时，你将成功逃离，并根据<span class="hp">剩余生命</span>与<span class="hp">收集到的证据数量</span>触发不同结局（共 9 种）。<br>
+        若你的生命值归 0，游戏直接结束。
+      </p>
+    </div>
+
+    <div class="ov-btns" style="margin-top:24px">
+      <button class="btn-primary" id="close-rules">明 白 了</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="end-overlay">
+  <div class="ov-box" id="end-box">
+    <h2 id="end-title"></h2>
+    <p class="rule-p" id="end-text" style="text-align:center"></p>
+    <div class="ov-stats" id="end-stats"></div>
+    <div class="ov-btns">
+      <button class="btn-primary" id="end-again">再 来 一 局</button>
+      <button class="btn-ghost" id="end-title-btn">返 回 标 题</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   常量与数据
+   ================================================================ */
+
+const BASE_LOCATIONS = [
+  { name:'卧室',   icon:'🛏️', adj:[1,3],       fixed:true  },
+  { name:null,     icon:null,  adj:[0,2,4],     fixed:false },
+  { name:null,     icon:null,  adj:[1,5],       fixed:false },
+  { name:null,     icon:null,  adj:[0,4,6],     fixed:false },
+  { name:'客厅',   icon:'🛋️', adj:[1,3,5,7],   fixed:true  },
+  { name:null,     icon:null,  adj:[2,4,8],     fixed:false },
+  { name:null,     icon:null,  adj:[3,7],       fixed:false },
+  { name:null,     icon:null,  adj:[4,6,8],     fixed:false },
+  { name:'后门',   icon:'🚪', adj:[5,7],       fixed:true  },
+];
+
+const VARIABLE_ROOMS = [
+  { name:'走廊',   icon:'🕯️' },
+  { name:'浴室',   icon:'🛁' },
+  { name:'书房',   icon:'📚' },
+  { name:'厨房',   icon:'🍳' },
+  { name:'地牢',   icon:'⛓️' },
+  { name:'衣帽间', icon:'👗' },
+];
+
+const SURVIVORS = [
+  { id:'m', name:'M · 沉默的承受者', icon:'🖤',
+    desc:'对疼痛的耐受度极高，默默承受一切。',
+    ability:'<b>恋痛</b>：生命上限 +2（10 点），每回合结束回复 1 点生命。',
+    maxHp:10, maxAp:3, passive:'regen' },
+  { id:'sub', name:'Sub · 精神的臣服者', icon:'🕊️',
+    desc:'习惯于交出自我，也懂得如何温和周旋。',
+    ability:'<b>共情</b>：搜证成功时额外恢复 2 点生命。',
+    maxHp:9, maxAp:3, passive:'empathy' },
+  { id:'brat', name:'Brat · 反抗的少女', icon:'🔥',
+    desc:'不服从，不认输，懂得如何反击。',
+    ability:'<b>反击</b>：反抗时额外投 1 颗骰子。',
+    maxHp:8, maxAp:3, passive:'bonusAttack' },
+  { id:'pet', name:'贝 · 冷静的小圈少女', icon:'🎀',
+    desc:'对一切充满好奇，脚步轻快。',
+    ability:'<b>探索</b>：每回合行动点 +1（4 AP）。',
+    maxHp:8, maxAp:4, passive:'extraAp' },
+];
+
+const KILLERS = [
+  { id:'master', name:'主 · 使用者', icon:'🖤',
+    desc:'专注于管教与 SP，却把你当成了满足自己的工具。',
+    ability:'<b>使用者</b>：精力值较高（16），但掌控欲成长较慢。',
+    hp:16, bloodlust:1, atkBonus:0, moveBonus:0, tag:'THE MASTER' },
+  { id:'sadist', name:'S · 纯粹施虐', icon:'⛓️',
+    desc:'沉溺于赐予疼痛与虐待，毫不顾及你的身心。',
+    ability:'<b>纯粹施虐</b>：攻击骰 +1，初始掌控欲等级 2。',
+    hp:14, bloodlust:2, atkBonus:1, moveBonus:0, tag:'THE SADIST' },
+  { id:'dom', name:'Dom · 绝对掌控', icon:'👁️',
+    desc:'掌控欲极强，乐于打压与持续的精神控制。',
+    ability:'<b>梦魇</b>：初始掌控欲 3，每回合移动 +1 格，精力值较低（12）。',
+    hp:12, bloodlust:3, atkBonus:0, moveBonus:1, tag:'THE DOMINANT' },
+];
+
+const DIFFICULTIES = [
+  { id:'easy',   name:'轻松', icon:'🕯️', desc:'上位精力 -4，初始掌控欲 -1。',
+    hpMod:-4, blMod:-1 },
+  { id:'normal', name:'普通', icon:'🌘', desc:'标准规则，推荐首次游玩。',
+    hpMod:0, blMod:0 },
+  { id:'nightmare', name:'噩梦', icon:'🩸', desc:'上位精力 +5，初始掌控欲 +1。',
+    hpMod:5, blMod:1 },
+];
+
+const ITEMS = {
+  belt:      { name:'皮带扣',   icon:'🖤', type:'weapon', dice:2 },
+  heel:      { name:'高跟鞋',   icon:'👠', type:'weapon', dice:2 },
+  lamp:      { name:'台灯',     icon:'💡', type:'weapon', dice:2 },
+  scissors:  { name:'剪刀',     icon:'✂️', type:'weapon', dice:3 },
+  cue:       { name:'台球杆',   icon:'🎱', type:'weapon', dice:3 },
+  taser:     { name:'电击器',   icon:'⚡', type:'weapon', dice:4 },
+  spray:     { name:'防狼喷雾', icon:'🌶️', type:'weapon', dice:5 },
+  ointment:  { name:'药膏',     icon:'🧪', type:'heal',   amount:2 },
+  heatpad:   { name:'热敷袋',   icon:'♨️', type:'heal',   amount:3 },
+  painkiller:{ name:'止痛药',   icon:'💊', type:'heal',   amount:3 },
+  firstaid:  { name:'急救包',   icon:'🩹', type:'heal',   amount:4 },
+  sedative:  { name:'镇静喷雾', icon:'💨', type:'bomb',   damage:3 },
+  flashlight:{ name:'强光手电', icon:'🔦', type:'stun' },
+};
+
+const LOOT_POOL = [
+  'belt','belt','belt',
+  'heel','heel','heel',
+  'lamp','lamp','lamp',
+  'scissors','scissors',
+  'cue','cue',
+  'taser',
+  'spray',
+  'ointment','ointment',
+  'heatpad','heatpad',
+  'painkiller','painkiller',
+  'firstaid',
+  'sedative',
+  'flashlight',
+];
+
+const EVENTS = [
+  { name:'浓雾弥漫', icon:'🌫️', desc:'上位本回合移动 +1 格。',
+    apply: g => { g.tempMoveBonus += 1; } },
+  { name:'突然断电', icon:'💡', desc:'你失去 1 点行动点。',
+    apply: g => { g.ap = Math.max(0, g.ap - 1); } },
+  { name:'远处哭声', icon:'😢', desc:'上位立刻向你的方向移动 1 步。',
+    apply: g => { killerMove(1, g.loc); } },
+  { name:'短暂平静', icon:'🍃', desc:'你恢复 2 点生命。',
+    apply: g => { g.hp = Math.min(g.maxHp, g.hp + 2); } },
+  { name:'意外发现', icon:'📦', desc:'你获得一件随机物品。',
+    apply: g => { const id = randLoot(); g.bag.push(id);
+      g.log.push({ t:`你翻出一件【${ITEMS[id].name}】`, c:'good' }); } },
+  { name:'掌控欲膨胀', icon:'🩸', desc:'上位的掌控欲等级 +1。',
+    apply: g => { g.killer.bloodlust = Math.min(6, g.killer.bloodlust + 1); } },
+  { name:'夜深人静', icon:'🌑', desc:'上位本回合不会移动。',
+    apply: g => { g.tempNoMove = true; } },
+  { name:'前住户的遗物', icon:'💄', desc:'你当前所在地点获得 1 份物资。',
+    apply: g => { g.locations[g.loc].loot++; } },
+  { name:'心跳加速', icon:'💓', desc:'你本回合反抗骰 -1。',
+    apply: g => { g.tempAtkMod -= 1; } },
+];
+
+const ENDINGS = [
+  { id:1, name:'坠入牢笼', text:'你虽然拼尽全力试图收集证据，并逃离这里，但最终还是被他抓了回来。这一次，他对你的监禁将更甚一步，你清楚自己很难再有逃跑的机会了……' },
+  { id:2, name:'完美出逃', text:'你没有被他伤害，并且巧妙地周旋并集齐了所有的证据。逃离这里后，你将所有的证据都放到网上进行了曝光，他在经历被所有人的声讨后，锒铛入狱……' },
+  { id:3, name:'正义曝光', text:'不论如何，你最终还是逃离了这里，你将所有的证据都放到网上进行了曝光，他在经历被所有人的声讨后，锒铛入狱……' },
+  { id:4, name:'公之于众', text:'不论如何，你最终还是逃离了这里，但你收集的证据并不确凿，虽然他在网上受到了一定的声讨，但这并没有彻底摧毁对方的人气。' },
+  { id:5, name:'难以辩解', text:'千辛万苦之中，你逃离了这里，但大部分能够证明你遭受一切的证据已经被他摧毁，你试图在网上曝光他的恶行，但换来的更多是人们的不关心以及对你证据不足的质疑……' },
+  { id:6, name:'身陷泥潭', text:'千辛万苦之中，你逃离了这里，但他销毁了所有能够证明你遭受一切的证据，等到你安稳下来试图曝光他时，却发现网上布满了他引导之下对你的声讨和抹黑……但至少，你的生命安全在逃离那里后不再受到威胁。' },
+  { id:7, name:'迟到的正义', text:'你在试图逃离时，被他不择手段得造成了严重的伤害……你将所有的证据都放到网上进行了曝光，他在经历被所有人的声讨后，锒铛入狱……但那些对你造成的伤害，已经永远无法再被抹去了。' },
+  { id:8, name:'两败俱伤', text:'你在试图逃离时，被他不择手段得造成了严重的伤害……你试图对他进行曝光，但这只是对他的名声造成了影响，但你所承受的伤害，却实打实地无法被挽回。' },
+  { id:9, name:'黑暗的未来', text:'你在试图逃离时，被他不择手段得造成了严重的伤害……而大部分能够证明你遭受一切的证据都已被销毁，等到你安稳下来时，发现网上布满了他引导之下对你的声讨和抹黑……你虽然逃离了那里，却陷入了另一处黑暗之所。' },
+];
+
+const ACHIEVEMENTS = [
+  { id:'end_1', name:'坠入牢笼',   cond:'生命值为 0 结束游戏。' },
+  { id:'end_2', name:'完美出逃',   cond:'收集到所有证据后，满血逃走。' },
+  { id:'end_3', name:'正义曝光',   cond:'收集到所有证据后，生命 ≥ 3 的情况下逃走。' },
+  { id:'end_4', name:'公之于众',   cond:'收集 4 份以上证据后，生命 ≥ 3 的情况下逃走。' },
+  { id:'end_5', name:'难以辩解',   cond:'收集 3 份以内的证据，生命 ≥ 3 的情况下逃走。' },
+  { id:'end_6', name:'身陷泥潭',   cond:'未收集到任何证据，生命 ≥ 3 的情况下逃走。' },
+  { id:'end_7', name:'迟到的正义', cond:'收集到所有证据后，生命 ≤ 2 的情况下逃走。' },
+  { id:'end_8', name:'两败俱伤',   cond:'收集 4 份以上证据后，生命 ≤ 2 的情况下逃走。' },
+  { id:'end_9', name:'黑暗的未来', cond:'收集 3 份以内的证据，生命 ≤ 2 的情况下逃走。' },
+  { id:'sp_1',  name:'险象环生',   cond:'整局被对方命中不超过 1 次，并成功逃离。' },
+  { id:'sp_2',  name:'猫鼠游戏',   cond:'在 10 回合内成功击败对方并逃离，且生命值 ≥ 3。' },
+  { id:'sp_3',  name:'幸运之神',   cond:'在一整局游戏中自己都没有骰出过全失败，并在生命 ≥ 3 的情况下逃离。' },
+];
+
+/* ================================================================
+   工具函数
+   ================================================================ */
+
+function $(id){ return document.getElementById(id); }
+function rnd(n){ return Math.floor(Math.random() * n); }
+function randLoot(){ return LOOT_POOL[rnd(LOOT_POOL.length)]; }
+
+function shuffle(arr){
+  for (let i = arr.length - 1; i > 0; i--){
+    const j = rnd(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function rollDice(n){
+  const rolls = [];
+  let hits = 0;
+  for (let i = 0; i < n; i++){
+    const r = 1 + rnd(6);
+    rolls.push(r);
+    if (r >= 4) hits++;
+  }
+  return { rolls, hits };
+}
+
+function dist(a, b, adj){
+  if (a === b) return 0;
+  const seen = new Set([a]);
+  let frontier = [a], d = 0;
+  while (frontier.length){
+    d++;
+    const next = [];
+    for (const cur of frontier){
+      for (const n of adj[cur]){
+        if (n === b) return d;
+        if (!seen.has(n)){ seen.add(n); next.push(n); }
+      }
+    }
+    frontier = next;
+  }
+  return 99;
+}
+
+function stepTowards(from, to, adj){
+  if (from === to) return from;
+  const prev = {};
+  const q = [from];
+  const seen = new Set([from]);
+  let found = false;
+  while (q.length && !found){
+    const cur = q.shift();
+    for (const n of adj[cur]){
+      if (seen.has(n)) continue;
+      seen.add(n);
+      prev[n] = cur;
+      if (n === to){ found = true; break; }
+      q.push(n);
+    }
+  }
+  if (!found) return from;
+  let cur = to;
+  while (prev[cur] !== from){
+    cur = prev[cur];
+    if (cur === undefined) return from;
+  }
+  return cur;
+}
+
+/* ================================================================
+   本地数据
+   ================================================================ */
+
+const LS_KEY = 'escapeDiary_save_v1';
+
+function defaultSave(){
+  return {
+    achievements: [],
+    escapedCount: 0,
+    totalEvidence: 0,
+    perfectExposure: 0,
+    failCount: 0,
+  };
+}
+
+function loadSave(){
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return defaultSave();
+    const data = JSON.parse(raw);
+    return Object.assign(defaultSave(), data);
+  } catch(e){ return defaultSave(); }
+}
+
+function writeSave(data){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e){}
+}
+
+function unlockAchievement(id){
+  const data = loadSave();
+  if (!data.achievements.includes(id)){
+    data.achievements.push(id);
+    writeSave(data);
+  }
+}
+
+/* ================================================================
+   全局状态
+   ================================================================ */
+
+let G = null;
+let selSurvivor = 'm';
+let selKiller = 'master';
+let selDifficulty = 'normal';
+let busy = false;
+
+/* ================================================================
+   界面切换
+   ================================================================ */
+
+function showScreen(id){
+  ['screen-title','screen-select','screen-game','screen-profile'].forEach(s => {
+    $(s).classList.toggle('hidden', s !== id);
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ================================================================
+   选择界面
+   ================================================================ */
+
+function buildSelectScreen(){
+  $('survivor-cards').innerHTML = SURVIVORS.map(s => `
+    <div class="sel-card sv-card ${s.id === selSurvivor ? 'on' : ''}" data-id="${s.id}">
+      <div class="sel-icon">${s.icon}</div>
+      <div class="sel-name">${s.name}</div>
+      <div class="sel-desc">${s.desc}</div>
+      <div class="sel-ability">${s.ability}</div>
+    </div>
+  `).join('');
+
+  $('killer-cards').innerHTML = KILLERS.map(k => `
+    <div class="sel-card kl kl-card ${k.id === selKiller ? 'on' : ''}" data-id="${k.id}">
+      <div class="sel-icon">${k.icon}</div>
+      <div class="sel-name">${k.name}</div>
+      <div class="sel-desc">${k.desc}</div>
+      <div class="sel-ability">${k.ability}</div>
+    </div>
+  `).join('');
+
+  $('difficulty-cards').innerHTML = DIFFICULTIES.map(d => `
+    <div class="sel-card sv-card ${d.id === selDifficulty ? 'on' : ''}" data-id="${d.id}">
+      <div class="sel-icon">${d.icon}</div>
+      <div class="sel-name">${d.name}</div>
+      <div class="sel-desc">${d.desc}</div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('#survivor-cards .sv-card').forEach(card => {
+    card.addEventListener('click', () => { selSurvivor = card.dataset.id; buildSelectScreen(); });
+  });
+  document.querySelectorAll('#killer-cards .kl-card').forEach(card => {
+    card.addEventListener('click', () => { selKiller = card.dataset.id; buildSelectScreen(); });
+  });
+  document.querySelectorAll('#difficulty-cards .sv-card').forEach(card => {
+    card.addEventListener('click', () => { selDifficulty = card.dataset.id; buildSelectScreen(); });
+  });
+}
+
+/* ================================================================
+   开始游戏
+   ================================================================ */
+
+function startGame(){
+  const sv = SURVIVORS.find(s => s.id === selSurvivor);
+  const kl = KILLERS.find(k => k.id === selKiller);
+  const df = DIFFICULTIES.find(d => d.id === selDifficulty);
+
+  const killerHp = Math.max(8, kl.hp + df.hpMod);
+  const killerBl = Math.max(1, Math.min(6, kl.bloodlust + df.blMod));
+
+  const varRooms = shuffle([...VARIABLE_ROOMS]);
+  const locations = BASE_LOCATIONS.map((base) => {
+    if (base.fixed){
+      return { name: base.name, icon: base.icon, adj: base.adj, evidence: 0, loot: 0 };
+    }
+    const r = varRooms.pop();
+    return { name: r.name, icon: r.icon, adj: base.adj, evidence: 0, loot: 0 };
+  });
+
+  G = {
+    turn: 0,
+    ap: sv.maxAp,
+    maxAp: sv.maxAp,
+    hp: sv.maxHp,
+    maxHp: sv.maxHp,
+    loc: 0,
+    bag: ['belt'],
+    evidenceCollected: 0,
+    totalEvidence: 8,
+    over: false,
+    busy: false,
+    survivor: sv,
+    killer: {
+      ...kl,
+      loc: 8,
+      hp: killerHp,
+      maxHp: killerHp,
+      bloodlust: killerBl,
+      stunned: 0,
+      atkBonus: kl.atkBonus,
+      moveBonus: kl.moveBonus,
+      blCounter: 0,
+    },
+    locations,
+    log: [],
+    tempMoveBonus: 0,
+    tempNoMove: false,
+    tempAtkMod: 0,
+    currentEvent: null,
+    everLostHp: false,
+    playerAllFail: false,
+    hitCount: 0,
+  };
+
+  // 8 份证据随机分布（0~7，每房最多 2 份，后门 8 无证据）
+  const slots = [];
+  for (let i = 0; i < 8; i++){ slots.push(i, i); }
+  shuffle(slots);
+  const chosen = slots.slice(0, 8);
+  for (const r of chosen) G.locations[r].evidence++;
+
+  // 12 份物资
+  for (let i = 0; i < 12; i++){
+    G.locations[rnd(9)].loot++;
+  }
+
+  logLine('夜幕降临。', 'sep');
+  logLine('你曾经以为，这是你想要的关系。', 'warn');
+  logLine(`直到你发现——【${kl.name}】并非如你所幻想的一般完美无瑕。`, 'bad');
+  logLine('他想要的，远比你想给的更多。', 'bad');
+  logLine('收集证据，反抗并逃离吧。', 'warn');
+
+  showScreen('screen-game');
+  startTurn();
+}
+
+/* ================================================================
+   回合流程
+   ================================================================ */
+
+function startTurn(){
+  G.turn++;
+  G.ap = G.maxAp;
+  G.tempMoveBonus = 0;
+  G.tempNoMove = false;
+  G.tempAtkMod = 0;
+
+  // 掌控欲每 3 回合 +1（第 3、6、9... 回合触发）
+  if (G.turn > 1 && G.turn % 3 === 0){
+    G.killer.bloodlust = Math.min(6, G.killer.bloodlust + 1);
+  }
+
+  if (G.survivor.passive === 'regen' && G.turn > 1){
+    if (G.hp < G.maxHp){
+      G.hp = Math.min(G.maxHp, G.hp + 1);
+      logLine('【恋痛】你从疼痛中缓过神，恢复 1 点生命。', 'good');
+    }
+  }
+
+  logLine(`── 第 ${G.turn} 回合 ──`, 'sep');
+
+  drawEvent();
+  render();
+}
+
+function drawEvent(){
+  const ev = EVENTS[rnd(EVENTS.length)];
+  G.currentEvent = ev;
+  logLine(`${ev.icon}【事件】${ev.name} — ${ev.desc}`, 'warn');
+  ev.apply(G);
+
+  $('event-bar').innerHTML =
+    `<span class="ev-icon">${ev.icon}</span>
+     <span><span class="ev-name">${ev.name}</span> — ${ev.desc}</span>`;
+  $('event-bar').style.animation = 'none';
+  void $('event-bar').offsetWidth;
+  $('event-bar').style.animation = '';
+}
+
+/* ================================================================
+   玩家行动
+   ================================================================ */
+
+function moveTo(idx){
+  if (G.over || G.ap < 1 || busy) return;
+  if (!G.locations[G.loc].adj.includes(idx)) return;
+
+  G.loc = idx;
+  G.ap--;
+  logLine(`你移动到【${G.locations[idx].name}】。`);
+
+  if (G.killer.loc === G.loc){
+    logLine('⚠ 他就在你面前。', 'bad');
+  }
+  render();
+}
+
+function doSearch(){
+  if (G.over || G.ap < 1 || busy) return;
+  const L = G.locations[G.loc];
+  if (L.loot <= 0){
+    logLine('这里已经被翻遍了……', 'warn');
+    render();
+    return;
+  }
+
+  G.ap--;
+  L.loot--;
+
+  const id = randLoot();
+  G.bag.push(id);
+  logLine(`🔦 你翻找了一番，找到了【${ITEMS[id].name}】。`, 'good');
+  render();
+}
+
+function doEvidence(){
+  if (G.over || G.ap < 1 || busy) return;
+  const L = G.locations[G.loc];
+  if (L.evidence <= 0){
+    logLine('这里没有可收集的证据。', 'warn');
+    render();
+    return;
+  }
+
+  G.ap--;
+  const r = playerRoll(2);
+  showDice('搜证判定', r.rolls, r.hits);
+
+  if (r.hits > 0){
+    L.evidence--;
+    G.evidenceCollected++;
+    let extra = '';
+    if (G.survivor.passive === 'empathy'){
+      G.hp = Math.min(G.maxHp, G.hp + 2);
+      extra = '【共情】你安定下来（+2 HP）。';
+    }
+    logLine(`📄 你成功收走了一份证据。(${G.evidenceCollected}/${G.totalEvidence})`, 'good');
+    if (extra) logLine(extra, 'good');
+  } else {
+    logLine('你试图收走证据，却手忙脚乱……', 'bad');
+  }
+  render();
+}
+
+function doAttack(){
+  if (G.over || G.ap < 1 || busy) return;
+  if (G.killer.loc !== G.loc){
+    logLine('他不在这里。', 'warn');
+    render();
+    return;
+  }
+
+  G.ap--;
+
+  const w = bestWeapon();
+  let dice = (w ? w.dice : 1) + G.tempAtkMod;
+  if (G.survivor.passive === 'bonusAttack') dice++;
+  dice = Math.max(1, dice);
+
+  const r = playerRoll(dice);
+  showDice(`反抗 · ${w ? w.name : '赤手空拳'}`, r.rolls, r.hits, true);
+
+  if (r.hits > 0){
+    G.killer.hp -= r.hits;
+    logLine(`⛓️ 你用${w ? w.name : '拳头'}击中了他，造成 ${r.hits} 点伤害。`, 'good');
+    shakeScreen();
+  } else {
+    logLine(`你的反抗被他轻易化解了……`, 'bad');
+  }
+
+  if (G.killer.hp <= 0){
+    G.killer.hp = 0;
+    win();
+    render();
+    return;
+  }
+  render();
+}
+
+function doEndTurn(){
+  if (G.over || busy) return;
+  G.ap = 0;
+  render();
+
+  busy = true;
+  setTimeout(() => {
+    killerTurn();
+    busy = false;
+
+    if (!G.over){
+      startTurn();
+    } else {
+      render();
+    }
+  }, 320);
+}
+
+/* ================================================================
+   物品
+   ================================================================ */
+
+function useItem(idx){
+  if (G.over || G.ap < 1 || busy) return;
+  const id = G.bag[idx];
+  const it = ITEMS[id];
+  if (!it) return;
+
+  if (it.type === 'heal'){
+    G.ap--;
+    G.hp = Math.min(G.maxHp, G.hp + it.amount);
+    G.bag.splice(idx, 1);
+    logLine(`你使用了【${it.name}】，恢复 ${it.amount} 点生命。`, 'good');
+    render();
+
+  } else if (it.type === 'bomb'){
+    if (G.killer.loc !== G.loc){
+      logLine('镇静喷雾只有在他面前使用才有效。', 'warn');
+      render();
+      return;
+    }
+    G.ap--;
+    G.bag.splice(idx, 1);
+    G.killer.hp -= it.damage;
+    logLine(`💨 你喷出镇静喷雾，他踉跄后退，造成 ${it.damage} 点伤害。`, 'good');
+    showDice('镇静喷雾', [6,6,6], it.damage, true);
+    shakeScreen();
+    if (G.killer.hp <= 0){ G.killer.hp = 0; win(); }
+    render();
+
+  } else if (it.type === 'stun'){
+    if (G.killer.loc !== G.loc){
+      logLine('需要靠近他才能使用强光手电。', 'warn');
+      render();
+      return;
+    }
+    G.ap--;
+    G.bag.splice(idx, 1);
+    G.killer.bloodlust = Math.max(1, G.killer.bloodlust - 2);
+    G.killer.stunned = 1;
+    logLine(`🔦 强光直刺他的眼睛！他被震慑，掌控欲 -2，下回合无法行动。`, 'good');
+    render();
+  }
+}
+
+/* ================================================================
+   上位回合
+   ================================================================ */
+
+// 最近的、还有证据的房间（返回索引，无则 null）
+function nearestEvidenceLoc(){
+  const k = G.killer;
+  const adj = G.locations.map(l => l.adj);
+  let best = null, bestD = Infinity;
+  G.locations.forEach((L, i) => {
+    if (L.evidence > 0){
+      const d = dist(k.loc, i, adj);
+      if (d < bestD){ bestD = d; best = i; }
+    }
+  });
+  return best;
+}
+
+function killerMove(steps, target){
+  const k = G.killer;
+  const adj = G.locations.map(l => l.adj);
+  for (let i = 0; i < steps; i++){
+    if (k.loc === target) break;
+    const nx = stepTowards(k.loc, target, adj);
+    if (nx === k.loc) break;
+    k.loc = nx;
+  }
+}
+
+// 仅对当前停留房间判定一次
+function checkEvidenceDestroy(){
+  const k = G.killer;
+  const L = G.locations[k.loc];
+  if (L.evidence <= 0) return;
+  const r = 1 + rnd(6);
+  if (r >= 4){
+    L.evidence--;
+    logLine(`⛓️ 他在【${G.locations[k.loc].name}】销毁了一份证据。（骰出 ${r}）`, 'bad');
+  } else {
+    logLine(`⛓️ 他在【${G.locations[k.loc].name}】翻找，但证据逃过一劫。（骰出 ${r}）`, 'warn');
+  }
+}
+
+function killerTurn(){
+  const k = G.killer;
+
+  if (k.stunned > 0){
+    k.stunned--;
+    logLine('⛓️ 他被震慑住了，这一回合没有靠近。', 'good');
+    return;
+  }
+
+  // 决定目标：65% 追玩家，35% 去最近证据所在房间
+  let target = G.loc;
+  let purpose = 'hunt';
+  if (Math.random() >= 0.65){
+    const evLoc = nearestEvidenceLoc();
+    if (evLoc !== null && evLoc !== k.loc){
+      target = evLoc;
+      purpose = 'evidence';
+    }
+  }
+
+  // 移动
+  if (!G.tempNoMove && k.loc !== target){
+    const steps = 1 + (k.bloodlust >= 4 ? 1 : 0) + k.moveBonus + G.tempMoveBonus;
+    const from = k.loc;
+    killerMove(steps, target);
+    if (k.loc !== from){
+      logLine(`⛓️ 他移动到了【${G.locations[k.loc].name}】。`, 'warn');
+    }
+  } else if (G.tempNoMove && k.loc !== G.loc){
+    logLine('⛓️ 他在黑暗中徘徊，没有靠近。', 'warn');
+  }
+
+  // 到达后：玩家不在场则判定销毁证据
+  if (k.loc !== G.loc){
+    checkEvidenceDestroy();
+    if (purpose === 'evidence' && k.loc === target){
+      // 已到达证据房，下一回合会优先判定销毁
+    }
+  }
+
+  // 然后攻击
+  if (k.loc === G.loc){
+    killerAttack();
+  }
+}
+
+function killerAttack(){
+  const k = G.killer;
+  // 攻击骰：掌控欲4→3骰，掌控欲6→4骰
+  const n = Math.min(6, Math.floor(k.bloodlust / 2) + k.atkBonus + 1);
+  const r = rollDice(n);
+
+  showDice('他的靠近', r.rolls, r.hits, false);
+
+  if (r.hits > 0){
+    G.hp -= r.hits;
+    G.everLostHp = true;
+    G.hitCount++;
+    logLine(`⛓️ 他扣住你的手腕，你受到 ${r.hits} 点伤害。`, 'bad');
+    shakeScreen();
+    flashScreen();
+  } else {
+    logLine(`⛓️ 他伸出手，你侧身躲开了。`, 'good');
+  }
+
+  if (G.hp <= 0){
+    G.hp = 0;
+    lose();
+  }
+}
+
+/* ================================================================
+   胜负与结局
+   ================================================================ */
+
+function determineEnding(){
+  if (G.hp <= 0) return 1;
+  const ev = G.evidenceCollected;
+  const hp = G.hp;
+  const fullHp = (hp === G.maxHp);
+
+  if (fullHp && ev === 8) return 2;
+  if (hp >= 3 && ev === 8) return 3;
+  if (hp >= 3 && ev >= 4) return 4;
+  if (hp >= 3 && ev >= 1) return 5;
+  if (hp >= 3 && ev === 0) return 6;
+  if (hp <= 2 && ev === 8) return 7;
+  if (hp <= 2 && ev >= 4) return 8;
+  if (hp <= 2) return 9;
+  return 1;
+}
+
+function saveData(endingId, isWin){
+  const data = loadSave();
+  data.totalEvidence += G.evidenceCollected;
+  if (isWin){
+    data.escapedCount++;
+    if (G.evidenceCollected === 8) data.perfectExposure++;
+  } else {
+    data.failCount++;
+  }
+  writeSave(data);
+}
+
+function win(){
+  G.over = true;
+  const endingId = determineEnding();
+  const ending = ENDINGS.find(e => e.id === endingId);
+
+  unlockAchievement('end_' + endingId);
+  if (G.hitCount <= 1) unlockAchievement('sp_1');
+  if (G.turn <= 10 && G.hp >= 3) unlockAchievement('sp_2');
+  if (!G.playerAllFail && G.hp >= 3) unlockAchievement('sp_3');
+
+  saveData(endingId, true);
+
+  const box = $('end-box');
+  box.className = 'ov-box win';
+  if (endingId === 1) box.className = 'ov-box lose';
+
+  $('end-title').textContent = `【${ending.name}】`;
+  $('end-text').innerHTML = ending.text;
+
+  $('end-stats').innerHTML = `
+    <div class="ov-stat y"><div class="v">${G.evidenceCollected}/${G.totalEvidence}</div><div class="l">收 集 的 证 据</div></div>
+    <div class="ov-stat g"><div class="v">${G.hp}/${G.maxHp}</div><div class="l">剩 余 生 命</div></div>
+    <div class="ov-stat p"><div class="v">${G.turn}</div><div class="l">坚 持 回 合</div></div>
+    <div class="ov-stat r"><div class="v">${G.killer.maxHp - G.killer.hp}</div><div class="l">对 他 的 伤 害</div></div>
+  `;
+  setTimeout(() => $('end-overlay').classList.remove('hidden'), 600);
+}
+
+function lose(){
+  G.over = true;
+  const ending = ENDINGS.find(e => e.id === 1);
+  unlockAchievement('end_1');
+  saveData(1, false);
+
+  const box = $('end-box');
+  box.className = 'ov-box lose';
+  $('end-title').textContent = `【${ending.name}】`;
+  $('end-text').innerHTML = ending.text;
+
+  $('end-stats').innerHTML = `
+    <div class="ov-stat y"><div class="v">${G.evidenceCollected}/${G.totalEvidence}</div><div class="l">收 集 的 证 据</div></div>
+    <div class="ov-stat r"><div class="v">${G.killer.hp}/${G.killer.maxHp}</div><div class="l">他 的 剩 余 精 力</div></div>
+    <div class="ov-stat p"><div class="v">${G.turn}</div><div class="l">坚 持 回 合</div></div>
+    <div class="ov-stat"><div class="v">0</div><div class="l">未 能 逃 离</div></div>
+  `;
+  setTimeout(() => $('end-overlay').classList.remove('hidden'), 600);
+}
+
+/* ================================================================
+   辅助
+   ================================================================ */
+
+function bestWeapon(){
+  let best = null;
+  for (const id of G.bag){
+    const it = ITEMS[id];
+    if (it.type === 'weapon' && (!best || it.dice > best.dice)) best = it;
+  }
+  return best;
+}
+
+function logLine(t, c){
+  G.log.push({ t, c });
+}
+
+function shakeScreen(){
+  document.body.classList.add('shake');
+  setTimeout(() => document.body.classList.remove('shake'), 460);
+}
+
+function flashScreen(){
+  const f = $('flash');
+  f.classList.add('on');
+  setTimeout(() => f.classList.remove('on'), 130);
+}
+
+function playerRoll(n){
+  const r = rollDice(n);
+  if (r.hits === 0) G.playerAllFail = true;
+  return r;
+}
+
+let diceTimer = null;
+function showDice(title, rolls, hits, isPlayer){
+  const p = $('dice-popup');
+  const resClass = hits > 0 ? 'good' : 'miss';
+  const resText = hits > 0 ? `${hits} 次成功` : '全部失败';
+
+  p.innerHTML = `
+    <div class="dp-title">${title}</div>
+    <div class="dp-dice">
+      ${rolls.map((r, i) =>
+        `<div class="die ${r >= 4 ? 'hit' : ''}" style="animation-delay:${i * 55}ms">${r}</div>`
+      ).join('')}
+    </div>
+    <div class="dp-result ${resClass}">${resText}</div>
+  `;
+  p.classList.add('show');
+
+  if (diceTimer) clearTimeout(diceTimer);
+  diceTimer = setTimeout(() => p.classList.remove('show'), 1500);
+}
+
+/* ================================================================
+   渲染
+   ================================================================ */
+
+function render(){
+  if (!G) return;
+
+  $('turn-pill').textContent = `第 ${G.turn} 回合`;
+
+  const k = G.killer;
+  const khp = Math.max(0, k.hp);
+  $('k-hp-bar').style.width = (khp / k.maxHp * 100) + '%';
+  $('k-name').textContent = `${k.icon} ${k.name}`;
+  $('k-tag').textContent = k.tag;
+  $('k-stats').innerHTML = `
+    <div class="danger">精力 <b>${khp}</b> / ${k.maxHp}</div>
+    <div class="danger">掌控欲 <b>${k.bloodlust}</b></div>
+    <div>攻击骰 <b>${Math.min(6, Math.floor(k.bloodlust / 2) + k.atkBonus + 1)}</b></div>
+    <div>所在 <b>${G.locations[k.loc].name}</b></div>
+  `;
+
+  const php = Math.max(0, G.hp);
+  $('p-hp-bar').style.width = (php / G.maxHp * 100) + '%';
+  $('p-name').textContent = `${G.survivor.icon} ${G.survivor.name}`;
+  $('p-tag').textContent = G.survivor.passive === 'regen' ? '恋痛' :
+                           G.survivor.passive === 'empathy' ? '共情' :
+                           G.survivor.passive === 'bonusAttack' ? '反击' : '探索';
+  const w = bestWeapon();
+  $('p-stats').innerHTML = `
+    <div class="good">生命 <b>${php}</b> / ${G.maxHp}</div>
+    <div>行动点 <b>${G.ap}</b> / ${G.maxAp}</div>
+    <div>工具 <b>${w ? w.name : '赤手空拳'}</b>${w ? ` (${w.dice}骰)` : ' (1骰)'}</div>
+    <div class="purple">证据 <b>${G.evidenceCollected}</b> / ${G.totalEvidence}</div>
+  `;
+
+  const cur = G.locations[G.loc];
+  $('map').innerHTML = G.locations.map((L, i) => {
+    const loc = L;
+    const here = i === G.loc;
+    const killerHere = i === k.loc;
+    const reachable = loc.adj.includes(G.loc) && G.ap > 0 && !G.over && !busy;
+
+    let cls = 'loc';
+    if (reachable) cls += ' reachable';
+    if (here) cls += ' here';
+    if (killerHere) cls += ' killer-here';
+
+    const tokens = [];
+    if (L.evidence > 0) tokens.push(`<span>📄 ${L.evidence}</span>`);
+    if (L.loot > 0)     tokens.push(`<span>📦 ${L.loot}</span>`);
+
+    return `<div class="${cls}" data-i="${i}">
+      <div class="loc-head">
+        <span class="loc-icon">${loc.icon}</span>
+        <span class="loc-name">${loc.name}</span>
+      </div>
+      <div class="loc-mid">${tokens.join('')}</div>
+      <div class="loc-actors">
+        ${here ? '<span class="actor me">🖤</span>' : ''}
+        ${killerHere ? `<span class="actor killer">${k.icon}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  $('map').querySelectorAll('.loc.reachable').forEach(node => {
+    node.addEventListener('click', () => moveTo(+node.dataset.i));
+  });
+
+  $('btn-search').disabled  = G.over || G.ap < 1 || cur.loot <= 0 || busy;
+  $('btn-evidence').disabled = G.over || G.ap < 1 || cur.evidence <= 0 || busy;
+  $('btn-attack').disabled  = G.over || G.ap < 1 || k.loc !== G.loc || busy;
+  $('btn-end').disabled     = G.over || busy;
+
+  $('bag-cnt').textContent = G.bag.length ? `${G.bag.length} 件` : '';
+  if (G.bag.length === 0){
+    $('bag').innerHTML = '<div class="empty-inv">空空如也……</div>';
+  } else {
+    $('bag').innerHTML = G.bag.map((id, i) => {
+      const it = ITEMS[id];
+      let cls = 'item';
+      let usable = false;
+      let tag = '';
+
+      if (it.type === 'weapon'){
+        tag = `${it.dice} 骰`;
+      } else if (it.type === 'heal'){
+        tag = `+${it.amount} HP`;
+        usable = G.ap >= 1 && !G.over && G.hp < G.maxHp;
+      } else if (it.type === 'bomb'){
+        tag = `${it.damage} 伤害`;
+        usable = G.ap >= 1 && !G.over && k.loc === G.loc;
+        if (usable) cls += ' bomb-usable';
+      } else if (it.type === 'stun'){
+        tag = '震慑';
+        usable = G.ap >= 1 && !G.over && k.loc === G.loc;
+        if (usable) cls += ' bomb-usable';
+      }
+
+      if (usable && it.type === 'heal') cls += ' usable';
+
+      return `<div class="${cls}" data-i="${i}">
+        <span class="item-icon">${it.icon}</span>
+        <span>${it.name}</span>
+        <span class="item-tag">${tag}</span>
+      </div>`;
+    }).join('');
+
+    $('bag').querySelectorAll('.item.usable, .item.bomb-usable').forEach(node => {
+      node.addEventListener('click', () => useItem(+node.dataset.i));
+    });
+  }
+
+  $('log').innerHTML = G.log.slice(-70)
+    .map(l => `<div class="log-line ${l.c || ''}">${l.t}</div>`)
+    .join('');
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+/* ================================================================
+   资料界面
+   ================================================================ */
+
+function renderAchievements(){
+  const data = loadSave();
+  $('profile-body').innerHTML = `
+    <div class="ach-grid">
+      ${ACHIEVEMENTS.map(a => {
+        const unlocked = data.achievements.includes(a.id);
+        return `<div class="ach-card ${unlocked ? 'unlocked' : ''}" data-id="${a.id}">
+          <div class="ach-mark">${unlocked ? '🏆' : '🔒'}</div>
+          <div class="ach-name">${a.name}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+  document.querySelectorAll('#profile-body .ach-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const a = ACHIEVEMENTS.find(x => x.id === card.dataset.id);
+      const unlocked = loadSave().achievements.includes(a.id);
+      $('ach-modal-name').textContent = (unlocked ? '🏆 ' : '🔒 ') + a.name;
+      $('ach-modal-cond').innerHTML = a.cond;
+      $('ach-overlay').classList.remove('hidden');
+    });
+  });
+}
+
+function renderStats(){
+  const data = loadSave();
+  $('profile-body').innerHTML = `
+    <div class="stat-list">
+      <div class="stat-item green"><span>成功逃离次数</span><b>${data.escapedCount}</b></div>
+      <div class="stat-item gold"><span>成功收集证据</span><b>${data.totalEvidence}</b></div>
+      <div class="stat-item purple"><span>完美曝光次数</span><b>${data.perfectExposure}</b></div>
+      <div class="stat-item red"><span>累计失败</span><b>${data.failCount}</b></div>
+    </div>
+  `;
+}
+
+/* ================================================================
+   事件绑定
+   ================================================================ */
+
+$('to-select').addEventListener('click', () => {
+  buildSelectScreen();
+  showScreen('screen-select');
+});
+
+$('to-profile').addEventListener('click', () => {
+  showScreen('screen-profile');
+  renderAchievements();
+  document.querySelectorAll('.profile-tabs .btn-ghost').forEach(b => b.classList.remove('on'));
+  $('tab-ach').classList.add('on');
+});
+
+$('show-rules').addEventListener('click', () => {
+  $('rules-overlay').classList.remove('hidden');
+});
+
+$('close-rules').addEventListener('click', () => {
+  $('rules-overlay').classList.add('hidden');
+});
+
+$('back-title').addEventListener('click', () => {
+  showScreen('screen-title');
+});
+
+$('start-game').addEventListener('click', startGame);
+
+$('btn-search').addEventListener('click', doSearch);
+$('btn-evidence').addEventListener('click', doEvidence);
+$('btn-attack').addEventListener('click', doAttack);
+$('btn-end').addEventListener('click', doEndTurn);
+
+$('tab-ach').addEventListener('click', () => {
+  renderAchievements();
+  document.querySelectorAll('.profile-tabs .btn-ghost').forEach(b => b.classList.remove('on'));
+  $('tab-ach').classList.add('on');
+});
+
+$('tab-stats').addEventListener('click', () => {
+  renderStats();
+  document.querySelectorAll('.profile-tabs .btn-ghost').forEach(b => b.classList.remove('on'));
+  $('tab-stats').classList.add('on');
+});
+
+$('tab-back').addEventListener('click', () => {
+  showScreen('screen-title');
+});
+
+$('ach-modal-close').addEventListener('click', () => {
+  $('ach-overlay').classList.add('hidden');
+});
+
+$('ach-overlay').addEventListener('click', e => {
+  if (e.target === $('ach-overlay')) $('ach-overlay').classList.add('hidden');
+});
+
+$('end-again').addEventListener('click', () => {
+  $('end-overlay').classList.add('hidden');
+  startGame();
+});
+
+$('end-title-btn').addEventListener('click', () => {
+  $('end-overlay').classList.add('hidden');
+  showScreen('screen-title');
+});
+
+$('rules-overlay').addEventListener('click', e => {
+  if (e.target === $('rules-overlay')) $('rules-overlay').classList.add('hidden');
+});
+
+document.addEventListener('keydown', e => {
+  if (!G || G.over || busy) return;
+  if ($('screen-game').classList.contains('hidden')) return;
+  if (e.key === '1') doSearch();
+  else if (e.key === '2') doEvidence();
+  else if (e.key === '3') doAttack();
+  else if (e.key === ' '){ e.preventDefault(); doEndTurn(); }
+});
+
+/* ================================================================
+   启动
+   ================================================================ */
+buildSelectScreen();
+</script>
+</body>
+</html>
