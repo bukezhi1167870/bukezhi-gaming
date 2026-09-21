@@ -51,6 +51,24 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;opac
   animation:fadeUp .9s .7s both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 
+.page-footer{
+  margin-top:56px;
+  font-size:10.5px;
+  letter-spacing:1.5px;
+  line-height:2;
+  color:#6b5c68;
+  text-align:center;
+  animation:fadeUp .9s .85s both;
+}
+.page-footer a{
+  color:#a08a9c;
+  text-decoration:none;
+  transition:color .18s;
+}
+.page-footer a:hover{
+  color:var(--purple2);
+}
+
 button{font-family:inherit;cursor:pointer;border:none;outline:none;
   transition:all .18s cubic-bezier(.22,1,.36,1);}
 button:active:not(:disabled){transform:scale(.97)}
@@ -366,6 +384,15 @@ body.shake #app{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
       <button class="btn-primary" id="to-select">开 始 游 戏</button>
       <button class="btn-ghost" id="to-profile">我 的 资 料</button>
       <button class="btn-ghost" id="show-rules">游 戏 说 明</button>
+    </div>
+
+    <div class="page-footer">
+      <div>游戏作者：不可知</div>
+      <div>
+        <a href="https://x.com/bukezhi1167870" target="_blank" rel="noopener">
+          X账号（联系）：@bukezhi1167870
+        </a>
+      </div>
     </div>
   </div>
 
