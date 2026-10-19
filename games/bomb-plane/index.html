@@ -708,6 +708,7 @@ switch (data.type) {
             case 'start_attack':
                 game.awaitingTurn = false;
                 game.currentTurn = data.turn;
+                game.notice = '';
                 game.phase = 'attack';
                 game.myTurn = (data.turn === game.myId);
                 render();
@@ -883,7 +884,7 @@ switch (data.type) {
                 game.currentTurn = game.myId;
                 send({ type: 'start_attack', turn: game.myId });
                 render();
-            } else {
+            } else if (game.phase !== 'attack') {
                 setConnStatus('等待主机开始攻击...');
             }
         };
