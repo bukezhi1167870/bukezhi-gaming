@@ -417,6 +417,8 @@
   .rules-box li b{color:#e0b8ce;font-weight:600;}
   .rules-box button.restart{display:block;margin:20px auto 0;}
 </style>
+<script src="../../js/save-store.js"></script>
+<script src="../../js/down-save.js"></script>
 </head>
 <body>
 
@@ -528,7 +530,7 @@ function loadStats() {
 }
 
 function saveStats(stats) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch(e) { gameSave.warn('统计记录保存失败，请检查浏览器存储空间。'); }
 }
 
 function recordResult(mode, win) {
@@ -634,6 +636,7 @@ function render() {
   renderPending();
   renderActions();
   renderLog();
+  downSave.persist();
 }
 
 function renderHUD() {
@@ -780,6 +783,7 @@ function closeModal() {
    投掷弹窗
    --------------------------------------------------------- */
 async function startRoll(finalDice) {
+  downSave.persist({ ...S, phase: 'rolled', pending: finalDice.slice() });
   S.phase = 'rolling';
   render();
 
@@ -806,6 +810,7 @@ async function startRoll(finalDice) {
   diceEl.innerHTML = finalDice.map(v => dieHTML(v,'pending big')).join('');
   renderPending();
   renderRollButtons();
+  downSave.persist();
 }
 
 function renderRollButtons() {
@@ -906,6 +911,11 @@ function resolveTurn(placedFaces) {
   // 2. 契约填满判定
   const result = checkCompletedCards();
 
+  // Save the already resolved result; resuming must not grant rewards twice.
+  S.phase = 'settling';
+  S.resumeResult = result;
+  S.commandFaces = placedFaces || [];
+  S.resumeStage = S.commandFaces.length ? 'command' : (result.anyCompleted ? 'contract' : 'finish');
   // 3. 游戏结束检查
   render();
   const winCondition = S.mode !== 'endless' && S.completed >= 6;
@@ -916,20 +926,21 @@ function resolveTurn(placedFaces) {
     return;
   }
 
-  // 4. 指令弹窗 → 5. 契约完成弹窗 → 6. endTurn
+  resumeDownSettlement();
+}
+
+function resumeDownSettlement() {
+  const result = S.resumeResult;
   const afterCommand = () => {
     if (result.anyCompleted) {
-      openContractCompleteModal(result, () => endTurn(result.anyCompleted));
-    } else {
-      endTurn(result.anyCompleted);
-    }
+      S.resumeStage = 'contract';
+      downSave.persist();
+      openContractCompleteModal(result, () => endTurn(true));
+    } else endTurn(false);
   };
-
-  if (placedFaces && placedFaces.length > 0) {
-    openCommandModal(placedFaces, afterCommand);
-  } else {
-    afterCommand();
-  }
+  if (S.resumeStage === 'command') openCommandModal(S.commandFaces,afterCommand);
+  else if (S.resumeStage === 'contract') openContractCompleteModal(result,()=>endTurn(result.anyCompleted));
+  else endTurn(result.anyCompleted);
 }
 
 /* ---------------------------------------------------------
@@ -1145,6 +1156,7 @@ function checkCompletedCards() {
    回合推进 / 阶段转换
    --------------------------------------------------------- */
 function endTurn(cardCompleted) {
+  delete S.resumeStage; delete S.resumeResult; delete S.commandFaces; delete S.commandCardCompleted;
   if (cardCompleted) {
     S.turn = 1;
     S.usedActions.clear();
@@ -1320,6 +1332,7 @@ function showStart() {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  downSave.attach(ov);
 
   ov.querySelectorAll('.modes button').forEach(b => {
     b.onclick = () => {
@@ -1377,6 +1390,7 @@ const END_TEXT_LOSE = `你在这段关系中沉溺了。<br><br>
 你被困住的地方没有锁链，也没有门。但那个握着权力的人已不再需要用力，你再也无法逃离他的掌控。`;
 
 function showEnd(win) {
+  downSave.clear();
   closeModal();
 
   if (!S.resultRecorded) {
@@ -1460,8 +1474,25 @@ $('btn-ingame-rules').addEventListener('click', () => {
   showRulesModal();
 });
 
+const downSave = createDownSave({
+  state: () => S,
+  sequence: () => cardSeq,
+  actionExists: key => ACTIONS.some(a=>a.key===key),
+  restore: (state, sequence) => {
+    S = state; cardSeq = sequence; placementState = null;
+    render();
+    if (S.resumeStage) resumeDownSettlement();
+    else if (S.phase === 'rolled') {
+      const modal = openModal('<h3>继续上次投掷</h3><div id="modal-dice"></div><div id="modal-buttons"></div>');
+      modal.querySelector('#modal-dice').innerHTML = S.pending.map(v=>dieHTML(v,'pending big')).join('');
+      renderRollButtons();
+    }
+  }
+});
+
 /* 启动 */
 showStart();
 </script>
+<script src="../../js/game-nav.js" data-category="single"></script>
 </body>
 </html>
