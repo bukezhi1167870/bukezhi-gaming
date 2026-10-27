@@ -39,14 +39,6 @@ window.games = [
     desc: "搜证、反抗、在被‘主人’彻底掌控前，逃出这扇门。",
     category: "single"
   },
-    {
-    name: "地雷（测试）",
-    url: "games/Mine clearance/index.html",
-    image: "images/game-D03.webp",
-    tags: ["单人", "肉鸽", "扫雷", "卡牌", "规划"],
-    desc: "。",
-    category: "single"
-  },
   {
     name: "BDSM记账",
     url: "games/Bookkeeping/index.html",
