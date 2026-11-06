@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>沉溺之下 · BDSM单人游戏</title>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -513,24 +513,55 @@ function riskThreshold() {
    本地记录（localStorage）
    --------------------------------------------------------- */
 const STORAGE_KEY = 'chenni_below_stats_v2';
+const LEGACY_STATS_KEY = 'chenni_below_stats_v1';
+
+function normalizedStats(obj = {}) {
+  const count = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  return {
+    easy: { win: count(obj.easy?.win), lose: count(obj.easy?.lose) },
+    hard: { win: count(obj.hard?.win), lose: count(obj.hard?.lose) },
+    endless: { maxComplete: count(obj.endless?.maxComplete) },
+    legacyV1Migrated: obj.legacyV1Migrated === true
+  };
+}
 
 function loadStats() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { easy:{win:0,lose:0}, hard:{win:0,lose:0}, endless:{maxComplete:0} };
-    const obj = JSON.parse(raw) || {};
-    return {
-      easy: { win: (obj.easy&&obj.easy.win)||0, lose: (obj.easy&&obj.easy.lose)||0 },
-      hard: { win: (obj.hard&&obj.hard.win)||0, lose: (obj.hard&&obj.hard.lose)||0 },
-      endless: { maxComplete: (obj.endless&&obj.endless.maxComplete)||0 }
-    };
+    const obj = raw ? JSON.parse(raw) : {};
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw Error('invalid stats');
+    const stats = normalizedStats(obj);
+    if (!stats.legacyV1Migrated) {
+      const legacyRaw = localStorage.getItem(LEGACY_STATS_KEY);
+      if (legacyRaw) {
+        let legacy;
+        try {
+          legacy = JSON.parse(legacyRaw);
+          if (!legacy || typeof legacy !== 'object' || Array.isArray(legacy)) throw Error('invalid legacy stats');
+        } catch(e) {
+          gameSave.warn('旧版统计内容不完整，原记录已保留；当前版本的统计仍可正常使用。');
+          return stats;
+        }
+        const old = normalizedStats(legacy);
+        for (const mode of ['easy','hard']) {
+          for (const result of ['win','lose']) {
+            stats[mode][result] = Math.min(Number.MAX_SAFE_INTEGER, stats[mode][result] + old[mode][result]);
+          }
+        }
+        // Store counters and marker together. Never remove the original records.
+        stats.legacyV1Migrated = true;
+        saveStats(stats);
+      }
+    }
+    return stats;
   } catch(e) {
-    return { easy:{win:0,lose:0}, hard:{win:0,lose:0}, endless:{maxComplete:0} };
+    gameSave.warn('胜负统计暂时无法读取，原记录已保留。请检查浏览器存储权限和数据。');
+    return normalizedStats();
   }
 }
 
 function saveStats(stats) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch(e) { gameSave.warn('统计记录保存失败，请检查浏览器存储空间。'); }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedStats(stats))); } catch(e) { gameSave.warn('统计记录保存失败，请检查浏览器存储空间。'); }
 }
 
 function recordResult(mode, win) {
@@ -1491,6 +1522,7 @@ const downSave = createDownSave({
 });
 
 /* 启动 */
+loadStats();
 showStart();
 </script>
 <script src="../../js/game-nav.js" data-category="single"></script>
