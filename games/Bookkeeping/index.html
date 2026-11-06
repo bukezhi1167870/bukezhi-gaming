@@ -1007,9 +1007,18 @@ function renderLedgerTags(){
   const box = document.getElementById('ledgerTags');
   const chips = [{key:'all', label:'全部'}, {key:'__default__', label:'默认'}];
   state.tags.forEach(t=> chips.push({key:t, label:t}));
-  box.innerHTML = chips.map(c=>`
-    <div class="chip ${ledgerTag===c.key?'active':''}" onclick="setLedgerTag('${esc(c.key)}')">${esc(c.label)}</div>
-  `).join('');
+  const fragment = document.createDocumentFragment();
+  chips.forEach(c=>{
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (ledgerTag===c.key ? ' active' : '');
+    chip.textContent = c.label;
+    chip.style.fontFamily = 'inherit';
+    chip.setAttribute('aria-pressed', String(ledgerTag===c.key));
+    chip.addEventListener('click', () => setLedgerTag(c.key));
+    fragment.append(chip);
+  });
+  box.replaceChildren(fragment);
 }
 function setLedgerTag(key){
   ledgerTag = key;
